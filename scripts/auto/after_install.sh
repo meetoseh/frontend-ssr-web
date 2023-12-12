@@ -17,7 +17,7 @@ install_nvm() {
 }
 
 install_node() {
-    nvm install 18
+    nvm install 20
 }
 
 activate_node_installing_if_necessary() {
@@ -27,7 +27,7 @@ activate_node_installing_if_necessary() {
         install_nvm
         activate_nvm
     fi
-
+    
     if ! command -v npm > /dev/null 2>&1
     then
         install_node
