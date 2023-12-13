@@ -20,17 +20,17 @@ export type SimpleRoute = Omit<Route, 'path' | 'handler'> & {
  */
 export type Router = {
   /**
-   * The full path to this router. For example, https://example.com/foo
+   * The full path to this router. For example, /foo
    * Must not end with a slash.
    */
   prefix: string;
 
   /**
    * If another path segment is available, then there may be another router
-   * which can handle it. For example, if the prefix is https://example.com/foo
-   * and the url requested is https://example.com/foo/bar/baz, then the key
+   * which can handle it. For example, if the prefix is /foo
+   * and the url requested is /foo/bar/baz, then the key
    * `'bar'` may be present in subrouters, which will itself have the
-   * prefix `https://example.com/foo/bar`.
+   * prefix `/foo/bar`.
    */
   subrouters: Record<string, Router>;
 
@@ -46,7 +46,7 @@ export type RootRouter = Router & {
    * If there are simple, non-templated paths available within this router, then
    * the method and entire url will be a key in this object. For example,
    *
-   * GET: https://example.com/foo/bar/baz
+   * GET: /foo/bar/baz
    *
    * Due to how this is constructed, all simple paths can be lifted to the root
    * router, meaning they can be checked with a single dictionary lookup. If
@@ -58,8 +58,7 @@ export type RootRouter = Router & {
 /**
  * Creates a new empty root router
  *
- * @param prefix The prefix for the root router, which is typically just the
- *   domain name, e.g., http://example.com
+ * @param prefix The prefix for the root router, which is typically empty
  * @returns A new empty root router with the given prefix
  */
 export const createEmptyRootRouter = (prefix: string): RootRouter => ({
@@ -85,7 +84,7 @@ export const addRouteToRootRouter = (
   route: Route
 ): void => {
   if (typeof route.path === 'string') {
-    const handler = route.handler(router.prefix);
+    const handler = route.handler(`${router.prefix}${pathPrefix.join('')}`);
     for (const method of route.methods) {
       router.simplePaths[`${method}: ${router.prefix}${pathPrefix.join('')}${route.path}`] = {
         ...route,

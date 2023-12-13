@@ -6,10 +6,10 @@ export type SendMessageOptions = {
 };
 
 const SLACK_CHANNELS = {
-  "web-errors": "SLACK_WEB_ERRORS_URL",
-  ops: "SLACK_OPS_URL",
-  "oseh-bot": "SLACK_OSEH_BOT_URL",
-  "oseh-classes": "SLACK_OSEH_CLASSES_URL",
+  'web-errors': 'SLACK_WEB_ERRORS_URL',
+  ops: 'SLACK_OPS_URL',
+  'oseh-bot': 'SLACK_OSEH_BOT_URL',
+  'oseh-classes': 'SLACK_OSEH_CLASSES_URL',
 };
 
 /**
@@ -26,14 +26,10 @@ export type SlackChannelId = keyof typeof SLACK_CHANNELS;
  * @param blocks see https://api.slack.com/messaging/webhooks#advanced_message_formatting
  * @param preview the text for the notification
  */
-export const sendBlocks = async (
-  url: string,
-  blocks: object[],
-  preview: string
-): Promise<void> => {
+export const sendBlocks = async (url: string, blocks: object[], preview: string): Promise<void> => {
   await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({
       text: preview,
       blocks,
@@ -57,9 +53,9 @@ export const sendMessage = (
     url,
     [
       {
-        type: "section",
+        type: 'section',
         text: {
-          type: opts?.markdown ?? true ? "mrkdwn" : "plain_text",
+          type: opts?.markdown ?? true ? 'mrkdwn' : 'plain_text',
           text: message,
         },
       },

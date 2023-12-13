@@ -1,18 +1,14 @@
-import * as fs from "fs";
-import { CancelablePromise } from "./lib/CancelablePromise";
-import { Callbacks } from "./lib/Callbacks";
-import chalk from "chalk";
-import { createCancelablePromiseFromCallbacks } from "./lib/createCancelablePromiseFromCallbacks";
-import { createCancelableTimeout } from "./lib/createCancelableTimeout";
-import { colorNow } from "./logging";
-import {
-  HostAndPort,
-  discoverMasterUsingSentinels,
-  subscribeForOneMessage,
-} from "./redis";
-import redis from "redis";
-import { spawn } from "child_process";
-import * as crypto from "crypto";
+import * as fs from 'fs';
+import { CancelablePromise } from './lib/CancelablePromise';
+import { Callbacks } from './lib/Callbacks';
+import chalk from 'chalk';
+import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
+import { createCancelableTimeout } from './lib/createCancelableTimeout';
+import { colorNow } from './logging';
+import { HostAndPort, discoverMasterUsingSentinels, subscribeForOneMessage } from './redis';
+import redis from 'redis';
+import { spawn } from 'child_process';
+import * as crypto from 'crypto';
 
 export function handleUpdates(onReady: () => void): CancelablePromise<void> {
   let done = false;
@@ -23,7 +19,7 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
 
   const promise = new Promise<void>(async (resolve, reject) => {
     if (done) {
-      reject(new Error("canceled"));
+      reject(new Error('canceled'));
       return;
     }
 
@@ -56,9 +52,9 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
     } catch (e) {
       console.error(e);
     } finally {
-      fs.unlinkSync("updater.lock");
+      fs.unlinkSync('updater.lock');
       done = true;
-      reject(new Error("canceled"));
+      reject(new Error('canceled'));
     }
 
     async function raceCancelable<T>(
@@ -68,10 +64,7 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
       for (const other of others) {
         cancelers.add(other.cancel);
       }
-      await Promise.race([
-        canceled.promise,
-        ...others.map((other) => other.promise),
-      ]);
+      await Promise.race([canceled.promise, ...others.map((other) => other.promise)]);
       if (doneTentatively) {
         return;
       }
@@ -104,7 +97,7 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
       try {
         const messageCancelable = subscribeForOneMessage({
           client,
-          channel: "updates:frontend-ssr-web",
+          channel: 'updates:frontend-ssr-web',
         });
         await raceCancelable(canceled, messageCancelable);
         if (doneTentatively) {
@@ -112,19 +105,13 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
         }
 
         const message = await messageCancelable.promise;
-        console.log(
-          `${colorNow()} ${chalk.whiteBright(
-            `updater received signal: ${message}`
-          )}`
-        );
+        console.log(`${colorNow()} ${chalk.whiteBright(`updater received signal: ${message}`)}`);
 
         console.log(
-          `${colorNow()} ${chalk.gray(
-            "waiting a few seconds for github to cache the update..."
-          )}`
+          `${colorNow()} ${chalk.gray('waiting a few seconds for github to cache the update...')}`
         );
         await new Promise((resolve) => setTimeout(resolve, 5000));
-        console.log(`${colorNow()} ${chalk.gray("acquiring update lock...")}`);
+        console.log(`${colorNow()} ${chalk.gray('acquiring update lock...')}`);
 
         try {
           const acquireLockCancelable = acquireUpdateLock();
@@ -135,7 +122,7 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
         } catch (e) {
           console.log(
             `${colorNow()} ${chalk.red(
-              "updater failed to acquire updater lock; proceeding without lock"
+              'updater failed to acquire updater lock; proceeding without lock'
             )}`
           );
         }
@@ -161,49 +148,44 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
 
           console.warn(
             `${colorNow()} ${chalk.redBright(
-              "handleUpdates encountered an error; this usually indicates a redis failover. Retrying in 4s"
+              'handleUpdates encountered an error; this usually indicates a redis failover. Retrying in 4s'
             )}`,
             e
           );
 
           const timeout = createCancelableTimeout(4000);
-          await Promise.race([canceled.promise, timeout.promise]).catch(
-            () => {}
-          );
+          await Promise.race([canceled.promise, timeout.promise]).catch(() => {});
           timeout.cancel();
         }
       }
 
       canceled.cancel();
-      console.info(`${colorNow()} ${chalk.gray("updater shutting down")}`);
+      console.info(`${colorNow()} ${chalk.gray('updater shutting down')}`);
     }
 
     function createLockFileSync() {
       try {
-        fs.writeFileSync("updater.lock", process.pid.toString(), {
-          flag: "wx",
+        fs.writeFileSync('updater.lock', process.pid.toString(), {
+          flag: 'wx',
         });
       } catch (e) {
-        console.error(
-          `${colorNow()} ${chalk.redBright("unable to create lock file")}`,
-          e
-        );
+        console.error(`${colorNow()} ${chalk.redBright('unable to create lock file')}`, e);
         process.exit(1);
       }
     }
 
     async function doUpdate() {
-      if (process.platform === "win32") {
+      if (process.platform === 'win32') {
         console.warn(
           `${colorNow()} ${chalk.redBright(
-            "doUpdate not implemented on windows: restart manually"
+            'doUpdate not implemented on windows: restart manually'
           )}`
         );
-        process.emit("SIGINT");
+        process.emit('SIGINT');
         return;
       }
 
-      let updaterScript = "/home/ec2-user/update_webapp.sh";
+      let updaterScript = '/home/ec2-user/update_webapp.sh';
       spawn(`bash ${updaterScript}`, {
         shell: true,
         detached: true,
@@ -221,14 +203,12 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
 }
 
 function getRedisSentinels(): HostAndPort[] {
-  const redisInstancesRaw = process.env.REDIS_IPS?.split(",");
+  const redisInstancesRaw = process.env.REDIS_IPS?.split(',');
   if (redisInstancesRaw === undefined || redisInstancesRaw.length === 0) {
-    console.error(`${colorNow()} ${chalk.redBright("REDIS_IPS not set")}`);
+    console.error(`${colorNow()} ${chalk.redBright('REDIS_IPS not set')}`);
     process.exit(1);
   }
-  return redisInstancesRaw
-    .map((ip) => ip.trim())
-    .map((ip) => ({ host: ip, port: 26379 }));
+  return redisInstancesRaw.map((ip) => ip.trim()).map((ip) => ({ host: ip, port: 26379 }));
 }
 
 function releaseUpdateLockIfHeld(): CancelablePromise<void> {
@@ -238,14 +218,14 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
   };
   const promise = new Promise<void>(async (resolve, reject) => {
     if (done) {
-      reject(new Error("canceled"));
+      reject(new Error('canceled'));
       return;
     }
 
     let ourIdentifier: string | null = null;
     try {
-      ourIdentifier = fs.readFileSync("updater-lock-key.txt", {
-        encoding: "utf8",
+      ourIdentifier = fs.readFileSync('updater-lock-key.txt', {
+        encoding: 'utf8',
       });
     } catch (e) {
       // we don't hold the lock
@@ -315,7 +295,7 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
     }
 
     const commandPromise = client.eval(DELETE_IF_MATCH_SCRIPT, {
-      keys: ["updates:frontend-ssr-web:lock"],
+      keys: ['updates:frontend-ssr-web:lock'],
       arguments: [ourIdentifier],
     });
 
@@ -337,22 +317,16 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
     const commandResult = await commandPromise;
 
     try {
-      fs.unlinkSync("updater-lock-key.txt");
+      fs.unlinkSync('updater-lock-key.txt');
     } catch (e) {
       console.warn(
-        `${colorNow()} ${chalk.redBright(
-          "updater unable to delete updater-lock-key.txt"
-        )}`,
+        `${colorNow()} ${chalk.redBright('updater unable to delete updater-lock-key.txt')}`,
         e
       );
     }
 
-    if (commandResult === "1" || commandResult === 1) {
-      console.info(
-        `${colorNow()} ${chalk.white(
-          "updater successfully released update lock"
-        )}`
-      );
+    if (commandResult === '1' || commandResult === 1) {
+      console.info(`${colorNow()} ${chalk.white('updater successfully released update lock')}`);
     } else {
       console.log(
         `${colorNow()} ${chalk.red(
@@ -383,7 +357,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
   };
   const promise = new Promise<void>(async (resolve, reject) => {
     if (done) {
-      reject(new Error("canceled"));
+      reject(new Error('canceled'));
       return;
     }
 
@@ -448,11 +422,11 @@ function acquireUpdateLock(): CancelablePromise<void> {
       return;
     }
 
-    const ourIdentifier = crypto.randomBytes(16).toString("base64url");
+    const ourIdentifier = crypto.randomBytes(16).toString('base64url');
 
     while (!doneTentatively) {
       try {
-        fs.writeFileSync("updater-lock-key.txt", ourIdentifier);
+        fs.writeFileSync('updater-lock-key.txt', ourIdentifier);
       } catch (e) {
         if (!doneTentatively) {
           doneTentatively = true;
@@ -462,14 +436,10 @@ function acquireUpdateLock(): CancelablePromise<void> {
         }
       }
 
-      const commandPromise = client.set(
-        "updates:frontend-ssr-web:lock",
-        ourIdentifier,
-        {
-          NX: true,
-          EX: 300,
-        }
-      );
+      const commandPromise = client.set('updates:frontend-ssr-web:lock', ourIdentifier, {
+        NX: true,
+        EX: 300,
+      });
 
       try {
         await Promise.race([canceled.promise, commandPromise]);
@@ -486,7 +456,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
       }
 
       const result = await commandPromise;
-      if (result === "OK") {
+      if (result === 'OK') {
         console.info(
           `${colorNow()} ${chalk.white(
             `update successfully acquired update lock; identifier=${ourIdentifier}`

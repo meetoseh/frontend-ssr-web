@@ -1,3 +1,5 @@
+import { MutableRefObject, useCallback, useMemo, useRef } from 'react';
+
 /**
  * An abstraction for a list of functions to call when an event occurs,
  * with add/remove methods to add and remove functions from the list.
@@ -303,6 +305,40 @@ export type WritableValueWithCallbacks<T> = ValueWithCallbacks<T> & {
    * callbacks should be invoked separately.
    */
   set: (t: T) => void;
+};
+
+/**
+ * A simple react hook for creating a new writable value with
+ * callbacks when it changes. The result is memoized and will
+ * not change unless an empty dependency array useEffect would
+ * be triggered (i.e., remounting or during development).
+ *
+ * @param initial the initial value, ignored except during the first render
+ * @returns a value with callbacks, initialized to initial
+ */
+export const useWritableValueWithCallbacks = <T>(
+  initial: () => T
+): WritableValueWithCallbacks<T> => {
+  const value = useRef<T>() as MutableRefObject<T>;
+  const callbacks = useRef<Callbacks<undefined>>() as MutableRefObject<Callbacks<undefined>>;
+  if (callbacks.current === undefined) {
+    value.current = initial();
+    callbacks.current = new Callbacks<undefined>();
+  }
+
+  const get = useCallback(() => value.current, []);
+  const set = useCallback((t: T) => {
+    value.current = t;
+  }, []);
+
+  return useMemo(
+    () => ({
+      get,
+      set,
+      callbacks: callbacks.current,
+    }),
+    [get, set, callbacks]
+  );
 };
 
 /**
