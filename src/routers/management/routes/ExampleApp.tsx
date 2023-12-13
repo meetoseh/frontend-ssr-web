@@ -2,33 +2,44 @@ import { ReactElement, useCallback, useRef } from 'react';
 import { useWritableValueWithCallbacks } from '../../../lib/Callbacks';
 import { setVWC } from '../../../uikit/lib/setVWC';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
+import styles from './ExampleApp.module.css';
 
 /**
  * The component to render for the example route. This is rendered on the
  * server and also included in the build for the client, so it's important
  * to be careful about the imports on this file
  */
-export const ExampleApp = (): ReactElement => {
+export const ExampleApp = ({ initialTodos }: { initialTodos: string[] }): ReactElement => {
   return (
     <html>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <link rel="stylesheet" href="/fonts.css" />
+        <link rel="stylesheet" href="/shared/management/assets/example/main.css" />
         <title>Example</title>
       </head>
       <body>
         <div id="root">
-          <h1>Example</h1>
-          <p>This is an example HTML page to show rendering via react.</p>
-          <TodoList />
+          <div className={styles.container}>
+            <div className={styles.innerContainer}>
+              <div className={styles.content}>
+                <h1 className={styles.title}>Example</h1>
+                <p className={styles.body}>
+                  This is an example HTML page to show rendering via react.
+                </p>
+                <TodoList initial={initialTodos} />
+              </div>
+            </div>
+          </div>
         </div>
       </body>
     </html>
   );
 };
 
-const TodoList = (): ReactElement => {
-  const todosVWC = useWritableValueWithCallbacks<string[]>(() => ['Buy milk', 'Buy eggs']);
+const TodoList = ({ initial }: { initial: string[] }): ReactElement => {
+  const todosVWC = useWritableValueWithCallbacks<string[]>(() => [...initial]);
   const inputRef = useRef<HTMLInputElement>(null);
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -51,15 +62,17 @@ const TodoList = (): ReactElement => {
   );
 
   return (
-    <div>
-      <h2>Todo List</h2>
-      <ul>
+    <div className={styles.todos}>
+      <h2 className={styles.todosTitle}>Todo List</h2>
+      <ul className={styles.todosList}>
         <RenderGuardedComponent
           props={todosVWC}
           component={(todos) => (
             <>
               {todos.map((todo, i) => (
-                <li key={i}>{todo}</li>
+                <li className={styles.todoItem} key={i}>
+                  {todo}
+                </li>
               ))}
             </>
           )}

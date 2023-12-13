@@ -100,6 +100,7 @@ export const staticRouteHandler = async (
     args.resp.setHeader('Vary', STANDARD_VARY_RESPONSE);
     args.resp.setHeader('Content-Encoding', coding);
     args.resp.setHeader('Content-Type', options.contentType);
+    args.resp.setHeader('X-Content-Type-Options', 'nosniff');
     args.resp.setHeader(
       'Cache-Control',
       'public, max-age=2, stale-while-revalidate=10, stale-if-error=86400'

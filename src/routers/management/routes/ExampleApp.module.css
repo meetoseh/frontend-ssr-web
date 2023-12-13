@@ -1,0 +1,58 @@
+body {
+  background: #f2f2f2;
+}
+
+.container {
+  display: grid;
+}
+
+.innerContainer {
+  grid-area: 1 / 1 / 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  max-width: 390px;
+}
+
+.title {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.body {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  line-height: 27px;
+  font-weight: 400;
+  color: #160808;
+}
+
+.todosTitle {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.todoItem {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  color: #160808;
+}

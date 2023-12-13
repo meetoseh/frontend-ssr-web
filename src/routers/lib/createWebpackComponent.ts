@@ -6,6 +6,7 @@ import * as slack from '../../slack';
 import os from 'os';
 import webpack from 'webpack';
 import { formatDuration } from '../../lib/formatDuration';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 
 type WebpackComponentArgs = {
   /**
@@ -33,6 +34,21 @@ type WebpackComponentArgs = {
    * the key and thus must be unique for each bundle.
    */
   bundlePath: string;
+
+  /**
+   * https://webpack.js.org/configuration/output/#outputpublicpath
+   *
+   * This is from the clients perspective. The path to the folder where
+   * emitted CSS files will be located. The CSS files will be emitted
+   * adjacent to the bundle file.
+   *
+   * So for example, if the bundlePath is `build/routers/example/example.bundle.js`,
+   * then there may be a CSS file `build/routers/example/main.css` that is emitted,
+   * and it must be served at `${cssPublicPath}/main.css`. So for example, if
+   * `cssPublicPath` is `/shared/assets/example`, then the CSS file must be served
+   * at `/shared/assets/example/main.css`.
+   */
+  cssPublicPath: string;
 };
 
 /**
@@ -52,6 +68,7 @@ export const createWebpackComponent = async ({
   props,
   key,
   bundlePath,
+  cssPublicPath,
 }: WebpackComponentArgs) => {
   // verify componentPath points to a file
   const componentFullPath = path.resolve(componentPath);
@@ -128,8 +145,13 @@ hydrateRoot(document, <App {...props} />);
           isolatedModules: true,
           noEmit: false,
           jsx: 'react-jsx',
+          plugins: [{ name: 'typescript-plugin-css-modules' }],
         },
         include: ['src'],
+        'ts-node': {
+          files: true,
+        },
+        files: ['src/Globals.d.ts'],
       })
     );
     // webpack config
@@ -157,8 +179,21 @@ hydrateRoot(document, <App {...props} />);
             ],
             exclude: /node_modules/,
           },
+          {
+            test: /\.module\.css$/i,
+            use: [
+              {
+                loader: MiniCssExtractPlugin.loader,
+                options: {
+                  publicPath: cssPublicPath,
+                },
+              },
+              'css-loader',
+            ],
+          },
         ],
       },
+      plugins: [new MiniCssExtractPlugin()],
     };
     // run webpack
     await new Promise<void>((resolve, reject) => {

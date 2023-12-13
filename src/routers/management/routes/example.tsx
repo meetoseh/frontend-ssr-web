@@ -4,16 +4,21 @@ import { PendingRoute } from '../../lib/route';
 import { staticRouteHandler } from '../../lib/staticRouteHandler';
 import { ExampleApp } from './ExampleApp';
 
-export const exampleRoute: PendingRoute = {
+const exampleRoute: PendingRoute = {
   methods: ['GET'],
   path: '/example',
   handler: async () => {
+    const props: { initialTodos: string[] } = {
+      initialTodos: ['Hello', 'World'],
+    };
     await createWebpackComponent({
       componentPath: 'src/routers/management/routes/ExampleApp.tsx',
+      props,
       bundlePath: 'build/example_dist/example.bundle.js',
+      cssPublicPath: 'shared/management/assets/example',
     });
     return componentRouteHandler(
-      async (args) => <ExampleApp />,
+      async (args) => <ExampleApp {...props} />,
       (routerPrefix) => ({
         bootstrapModules: [routerPrefix + '/example.bundle.js'],
       })
@@ -42,7 +47,7 @@ export const exampleRoute: PendingRoute = {
   ],
 };
 
-export const exampleRouteBundle: PendingRoute = {
+const exampleRouteBundle: PendingRoute = {
   methods: ['GET'],
   path: '/example.bundle.js',
   handler: () =>
@@ -51,3 +56,15 @@ export const exampleRouteBundle: PendingRoute = {
     }),
   docs: [],
 };
+
+const exampleCSSBundle: PendingRoute = {
+  methods: ['GET'],
+  path: '/assets/example/main.css',
+  handler: () =>
+    staticRouteHandler('build/example_dist/main.css', {
+      contentType: 'text/css; charset=utf-8',
+    }),
+  docs: [],
+};
+
+export default [exampleRoute, exampleRouteBundle, exampleCSSBundle];
