@@ -105,6 +105,11 @@ export type CreateComponentRoutesArgs<T extends object> = (
     }
 ) & {
   /**
+   * The command line arguments passed to the program
+   */
+  args: CommandLineArgs;
+
+  /**
    * The folder where we emit the bundle, relative to the project root,
    * e.g., `build/routers/example`
    */
@@ -155,7 +160,7 @@ const normalizePath = (p: string): string => {
  * This requires generating a bundle for the component via webpack,
  * which produces adjacent public files,
  */
-export const createComponentRoutes = <T extends object>({
+export const createComponentRoutes = async <T extends object>({
   path: routePath,
   assetsPath,
   buildFolder,
@@ -163,8 +168,9 @@ export const createComponentRoutes = <T extends object>({
   component,
   body,
   docs,
+  args,
   ...rest
-}: CreateComponentRoutesArgs<T>): PendingRoute[] => {
+}: CreateComponentRoutesArgs<T>): Promise<PendingRoute[]> => {
   const realAssetsPath = assetsPath ?? `${routePath}-assets`;
 
   let outerBundleArgs: BundleArgs | undefined = undefined;
@@ -237,6 +243,15 @@ export const createComponentRoutes = <T extends object>({
     releaseLock();
     return assets;
   };
+
+  // By eliminating this call you can make the function synchronous,
+  // in which case the bundle args are only created when the individual
+  // routes are realized. However, it's better for the build step to
+  // do this first if we're building anyway, since then we avoid tricking
+  // it into thinking we can actually build these routes concurrently
+  if (args.artifacts === 'rebuild' && !args.docsOnly) {
+    await initBundleArgs();
+  }
 
   return [
     {

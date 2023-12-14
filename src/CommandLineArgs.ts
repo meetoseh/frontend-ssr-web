@@ -29,4 +29,17 @@ export type CommandLineArgs = {
    * are already available.
    */
   artifacts: 'reuse' | 'rebuild';
+
+  /**
+   * The maximum number of routes to build simultaneously. This is
+   * ignored if reusing artifacts.
+   */
+  buildParallelism: number;
+
+  /**
+   * If true we are constructing routes solely for the purpose of building
+   * the openapi schema / sitemap etc. This may be run in parallel with
+   * a standard build and hence must be essentially side-effect free.
+   */
+  docsOnly: boolean;
 };

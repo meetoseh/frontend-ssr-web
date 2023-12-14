@@ -16,6 +16,7 @@ import {
   useRouterToRoute,
 } from './routers/lib/router';
 import { Callbacks } from './lib/Callbacks';
+import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
 import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
 import allRoutes from './routers/router';
 import { createFakeCancelable } from './lib/createFakeCancelable';
@@ -27,6 +28,7 @@ import {
 } from './routers/lib/errors';
 import { RouteWithPrefix, constructOpenapiSchemaRoute } from './routers/openapi/routes/schema';
 import { CommandLineArgs } from './CommandLineArgs';
+import { PendingRoute } from './routers/lib/route';
 
 /**
  * Prefix used on all routes
@@ -63,9 +65,19 @@ async function main() {
         'build/ are typically slower to generate than download, whereas those within tmp/ are ' +
         'typically faster to generate than download'
     )
+    .option(
+      '--build-parallelism <number>',
+      'The maximum number of routes to build simultaneously. This is ignored if reusing artifacts. Defaults to 1.',
+      '1'
+    )
     .parse();
 
   const optionsRaw = program.opts();
+  console.log(
+    `${colorNow()} ${chalk.whiteBright('starting...')}\n${chalk.gray(
+      JSON.stringify(optionsRaw, null, 2)
+    )}`
+  );
   const optionsTyped: CommandLineArgs = {
     host: optionsRaw.host,
     port: undefined,
@@ -73,6 +85,8 @@ async function main() {
     sslKeyfile: optionsRaw.sslKeyfile,
     serve: optionsRaw.serve,
     artifacts: optionsRaw.reuseArtifacts ? 'reuse' : 'rebuild',
+    buildParallelism: 1,
+    docsOnly: false,
   };
 
   let cert: Buffer | undefined = undefined;
@@ -106,6 +120,15 @@ async function main() {
         fs.promises.readFile(optionsTyped.sslCertfile),
         fs.promises.readFile(optionsTyped.sslKeyfile),
       ]);
+    }
+  }
+
+  if (optionsTyped.artifacts === 'rebuild') {
+    try {
+      optionsTyped.buildParallelism = parseInt(optionsRaw.buildParallelism);
+    } catch (e) {
+      console.error('--build-parallelism must be a number');
+      process.exit(1);
     }
   }
 
@@ -163,32 +186,226 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
   } catch (e) {}
 
   const router = createEmptyRootRouter('');
+
+  let pending: CancelablePromise<void>[] = [];
+  let pendingLocked = false;
+  const pendingLockedCallbacks = new Callbacks<undefined>();
+
+  /**
+   * Assumes we have the lock and removes the finished promises
+   * from pending. This is a little subtle due to when the compiler
+   * can switch contexts
+   */
+  const sweepPending = async () => {
+    const newPending = [];
+    for (const p of pending) {
+      if (p.done()) {
+        await p.promise;
+      } else {
+        newPending.push(p);
+      }
+    }
+    pending = newPending;
+  };
+
+  /**
+   * Assumes that we have the lock and sweeps pending until it has
+   * strictly less than the given number of promises
+   */
+  const sweepUntilLessThan = async (max: number) => {
+    await sweepPending();
+    while (pending.length >= max) {
+      await Promise.race(pending.map((p) => p.promise));
+      const prevLength = pending.length;
+      await sweepPending();
+      const newLength = pending.length;
+      if (newLength >= prevLength) {
+        throw new Error('implementation error (not making progress)');
+      }
+    }
+  };
+
+  /**
+   * Waits until some progress is made on pendingLocked. It is
+   * not guarranteed that pendingLocked is false when this resolves
+   */
+  const waitForLockMaybeFree = (): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      if (!pendingLocked) {
+        resolve();
+        return;
+      }
+
+      const onResolve = () => {
+        pendingLockedCallbacks.remove(onResolve);
+        resolve();
+      };
+      pendingLockedCallbacks.add(onResolve);
+    });
+  };
+
+  /**
+   * Returns once the necessary promise is in pending, not when the
+   * route is actually added.
+   */
+  const realizeRouteAndAddToRootRouter = async (
+    prefixes: string[],
+    route: PendingRoute
+  ): Promise<void> => {
+    while (pending.length >= opts.buildParallelism || pendingLocked) {
+      if (pendingLocked) {
+        await waitForLockMaybeFree();
+        continue;
+      }
+
+      pendingLocked = true;
+      await sweepUntilLessThan(opts.buildParallelism);
+      pendingLocked = false;
+      pendingLockedCallbacks.call(undefined);
+    }
+
+    pendingLocked = true;
+    const newPromise = constructCancelablePromise<void>({
+      body: async (state, resolve, reject) => {
+        try {
+          const handler = await route.handler(opts);
+          if (state.finishing) {
+            reject(new Error('canceled'));
+            state.done = true;
+            return;
+          }
+
+          const path = typeof route.path === 'string' ? route.path : await route.path(opts);
+          if (state.finishing) {
+            reject(new Error('canceled'));
+            state.done = true;
+            return;
+          }
+
+          addRouteToRootRouter(router, prefixes, {
+            ...route,
+            handler,
+            path,
+          });
+          state.finishing = true;
+          resolve();
+          state.done = true;
+        } catch (e) {
+          state.finishing = true;
+          reject(e);
+          state.done = true;
+        }
+      },
+    });
+    pending.push(newPromise);
+    pendingLocked = false;
+    pendingLockedCallbacks.call(undefined);
+  };
+
+  /**
+   * Initializes a dynamic list of routes using a single slot in pending by
+   * sequentially initializing each route in the list. Note that it would not be
+   * safe to try to "bounce" this to pending, since that would lead to a
+   * deadlock. However, in practice, whenever a route is specified in this way,
+   * all the routes are highly related, e.g., bundle the route, then construct
+   * the assets. That operation is necessarily sequential anyway, so it makes
+   * more sense to leave the other pending slots for other routes that can
+   * actually make use of the parallelism.
+   */
+  const initRoutesThenRealizeEachThenAddToRootRouter = async (
+    prefixes: string[],
+    routes: (args: CommandLineArgs) => Promise<PendingRoute[]>
+  ): Promise<void> => {
+    while (pending.length >= opts.buildParallelism || pendingLocked) {
+      if (pendingLocked) {
+        await waitForLockMaybeFree();
+        continue;
+      }
+
+      pendingLocked = true;
+      await sweepUntilLessThan(opts.buildParallelism);
+      pendingLocked = false;
+      pendingLockedCallbacks.call(undefined);
+    }
+
+    pendingLocked = true;
+    const newPromise = constructCancelablePromise<void>({
+      body: async (state, resolve, reject) => {
+        try {
+          const realRoutes = await routes(opts);
+          if (state.finishing) {
+            reject(new Error('canceled'));
+            state.done = true;
+            return;
+          }
+
+          for (const route of realRoutes) {
+            const handler = await route.handler(opts);
+            if (state.finishing) {
+              reject(new Error('canceled'));
+              state.done = true;
+              return;
+            }
+
+            const path = typeof route.path === 'string' ? route.path : await route.path(opts);
+            if (state.finishing) {
+              reject(new Error('canceled'));
+              state.done = true;
+              return;
+            }
+
+            addRouteToRootRouter(router, prefixes, {
+              ...route,
+              handler,
+              path,
+            });
+          }
+          state.finishing = true;
+          resolve();
+          state.done = true;
+        } catch (e) {
+          state.finishing = true;
+          reject(e);
+          state.done = true;
+        }
+      },
+    });
+    pending.push(newPromise);
+    pendingLocked = false;
+    pendingLockedCallbacks.call(undefined);
+  };
+
   for (const [prefix, routes] of Object.entries(allRoutes)) {
     for (const route of routes) {
-      const realRoutes = typeof route === 'function' ? await route() : [route];
-      for (const realRoute of realRoutes) {
-        addRouteToRootRouter(router, [globalPrefix, prefix], {
-          ...realRoute,
-          handler: await realRoute.handler(opts),
-          path: typeof realRoute.path === 'string' ? realRoute.path : await realRoute.path(opts),
-        });
+      // awaits here are optional and do not affect the parallelism factor
+      if (typeof route === 'function') {
+        await initRoutesThenRealizeEachThenAddToRootRouter([globalPrefix + prefix], route);
+      } else {
+        await realizeRouteAndAddToRootRouter([globalPrefix + prefix], route);
       }
     }
   }
-  const openapiRoute = constructOpenapiSchemaRoute(opts, flattenRoutes);
-  addRouteToRootRouter(router, [globalPrefix], {
-    ...openapiRoute,
-    handler: await openapiRoute.handler(opts),
-    path: typeof openapiRoute.path === 'string' ? openapiRoute.path : await openapiRoute.path(opts),
-  });
+  const openapiRoute = constructOpenapiSchemaRoute(opts, () =>
+    flattenRoutes({ ...opts, artifacts: 'reuse', serve: false, docsOnly: true })
+  );
+  await realizeRouteAndAddToRootRouter([globalPrefix], openapiRoute);
+
+  while (pending.length > 0 || pendingLocked) {
+    if (pendingLocked) {
+      await waitForLockMaybeFree();
+      continue;
+    }
+
+    await sweepUntilLessThan(1);
+  }
   return router;
 }
 
-async function flattenRoutes(): Promise<RouteWithPrefix[]> {
+async function flattenRoutes(opts: CommandLineArgs): Promise<RouteWithPrefix[]> {
   const result: RouteWithPrefix[] = [];
   for (const [prefix, routes] of Object.entries(allRoutes)) {
     for (const route of routes) {
-      const realRoutes = typeof route === 'function' ? await route() : [route];
+      const realRoutes = typeof route === 'function' ? await route(opts) : [route];
       for (const realRoute of realRoutes) {
         result.push({ prefix: globalPrefix + prefix, route: realRoute });
       }
