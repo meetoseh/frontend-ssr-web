@@ -9,6 +9,7 @@ import { CancelablePromise } from './lib/CancelablePromise';
 import { handleUpdates } from './updater';
 import * as slack from './slack';
 import * as os from 'os';
+import path from 'path';
 import {
   RootRouter,
   addRouteToRootRouter,
@@ -130,6 +131,13 @@ async function main() {
       console.error('--build-parallelism must be a number');
       process.exit(1);
     }
+
+    try {
+      await fs.promises.rm(path.resolve(path.join('build', 'routes')), { recursive: true });
+    } catch (e) {}
+    try {
+      await fs.promises.rm(path.resolve(path.join('tmp')), { recursive: true });
+    } catch (e) {}
   }
 
   const router = await createRouter(optionsTyped);

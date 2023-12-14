@@ -4,7 +4,7 @@ import exampleRoutes from './routes/example';
 import helloWorldRoute from './routes/hello_world';
 
 const routes: (PendingRoute | ((args: CommandLineArgs) => Promise<PendingRoute[]>))[] = [
-  exampleRoutes,
+  ...exampleRoutes,
   helloWorldRoute,
 ];
 

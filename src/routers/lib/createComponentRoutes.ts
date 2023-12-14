@@ -175,6 +175,7 @@ export const createComponentRoutes = async <T extends object>({
 
   let outerBundleArgs: BundleArgs | undefined = undefined;
   let bundleArgsLock: Promise<void> | undefined = undefined;
+
   const initBundleArgs = async (): Promise<BundleArgs> => {
     const realInitAssets = async () => {
       const folder = path.resolve(buildFolder);
@@ -205,7 +206,7 @@ export const createComponentRoutes = async <T extends object>({
           }
           return mimeType;
         })();
-        const handler = await staticRouteHandler(path.join(folder, filename), {
+        const handler = await staticRouteHandler(args, path.join(folder, filename), {
           contentType,
           immutable: true,
         });
@@ -233,6 +234,10 @@ export const createComponentRoutes = async <T extends object>({
       await bundleArgsLock;
     }
 
+    if (outerBundleArgs !== undefined) {
+      return outerBundleArgs;
+    }
+
     let releaseLock = () => {};
     bundleArgsLock = new Promise((resolve) => {
       releaseLock = resolve;
@@ -244,12 +249,17 @@ export const createComponentRoutes = async <T extends object>({
     return assets;
   };
 
-  // By eliminating this call you can make the function synchronous,
+  // By moving this call you can make the function synchronous,
   // in which case the bundle args are only created when the individual
   // routes are realized. However, it's better for the build step to
   // do this first if we're building anyway, since then we avoid tricking
   // it into thinking we can actually build these routes concurrently
-  if (args.artifacts === 'rebuild' && !args.docsOnly) {
+  if (args.artifacts === 'rebuild') {
+    await createWebpackComponent({
+      componentPath,
+      bundleFolder: buildFolder,
+      cssPublicPath: realAssetsPath,
+    });
     await initBundleArgs();
   }
 
@@ -258,13 +268,6 @@ export const createComponentRoutes = async <T extends object>({
       methods: ['GET'],
       path: () => routePath,
       handler: async (args: CommandLineArgs) => {
-        if (args.artifacts === 'rebuild') {
-          await createWebpackComponent({
-            componentPath,
-            bundleFolder: buildFolder,
-            cssPublicPath: realAssetsPath,
-          });
-        }
         if (outerBundleArgs === undefined) {
           outerBundleArgs = await initBundleArgs();
         }

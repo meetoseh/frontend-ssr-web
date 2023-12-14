@@ -19,6 +19,7 @@ import { parseContentType } from './contentType';
 import { finishWithBadRequest } from './finishWithBadRequest';
 import { finishWithNotAcceptable } from './finishWithNotAcceptable';
 import { BAD_REQUEST_MESSAGE } from './errors';
+import { CommandLineArgs } from '../../CommandLineArgs';
 
 /**
  * A static route handler, which just serves the contents of the file at the
@@ -29,6 +30,7 @@ import { BAD_REQUEST_MESSAGE } from './errors';
  * @param options.contentType The content type to serve the file as.
  */
 export const staticRouteHandler = async (
+  args: CommandLineArgs,
   filepath: string,
   options: {
     contentType: string;
@@ -46,11 +48,24 @@ export const staticRouteHandler = async (
   hasher.update(filepath, 'utf-8');
   const cacheKey = hasher.digest('base64url');
 
-  await Promise.all(
-    acceptableEncodings.map((encoding) =>
-      compress(filepath, `tmp/${cacheKey}.${encoding}`, encoding)
-    )
-  );
+  if (args.artifacts === 'rebuild') {
+    await Promise.all(
+      acceptableEncodings.map((encoding) =>
+        compress(filepath, `tmp/${cacheKey}.${encoding}`, encoding)
+      )
+    );
+  } else {
+    await Promise.all(
+      acceptableEncodings.map(async (encoding) => {
+        try {
+          await fs.promises.access(`tmp/${cacheKey}.${encoding}`, fs.constants.R_OK);
+        } catch (e) {
+          await compress(filepath, `tmp/${cacheKey}.${encoding}`, encoding);
+        }
+      })
+    );
+  }
+
   const acceptable: AcceptMediaRangeWithoutWeight[] = [parsedContentType];
 
   if ('charset' in parsedContentType.parameters) {

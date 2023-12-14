@@ -4,9 +4,9 @@ import chalk from 'chalk';
 import { inspect } from 'util';
 import * as slack from '../../slack';
 import os from 'os';
-import webpack from 'webpack';
 import { formatDuration } from '../../lib/formatDuration';
-import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import { spawn } from 'child_process';
+import { colorNow } from '../../logging';
 
 export type WebpackComponentArgs = {
   /**
@@ -108,12 +108,24 @@ export const createWebpackComponent = async ({
     throw new Error(`TSConfig file already exists at ${tsconfig}`);
   } catch (e) {}
 
+  const webpackConfigFile = path.join(
+    process.cwd(),
+    `${componentName}.${realKey}.webpack.config.js`
+  );
+
+  try {
+    await fs.promises.access(webpackConfigFile, fs.constants.R_OK);
+    throw new Error(`Webpack config file already exists at ${webpackConfigFile}`);
+  } catch (e) {}
+
   const bundleForLog = `${chalk.cyan(componentName)} ${chalk.gray('with key')} ${chalk.white(
     realKey
   )}`;
 
   console.info(
-    `${chalk.whiteBright('webpack:')} ${chalk.gray('generating bundle for')} ${bundleForLog}`
+    `${colorNow()} ${chalk.whiteBright('webpack:')} ${chalk.gray(
+      'generating bundle for'
+    )} ${bundleForLog}`
   );
 
   let hadError = false;
@@ -164,64 +176,79 @@ hydrateRoot(document, <App {...props} />);
       })
     );
     // webpack config
-    const webpackConfig: webpack.Configuration = {
-      mode: 'production',
-      entry: entrypoint,
-      output: {
-        path: bundleDirectory,
-        filename: bundleNameFormat,
-        chunkFilename: '[name].[contenthash].js',
-        assetModuleFilename: '[name].[contenthash][ext]',
-      },
-      resolve: {
-        extensions: ['.tsx', '.ts', '.js'],
-      },
-      module: {
-        rules: [
+    await fs.promises.writeFile(
+      webpackConfigFile,
+      `// AUTO GENERATED
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+
+const entrypoint = ${JSON.stringify(entrypoint)};
+const bundleDirectory = ${JSON.stringify(bundleDirectory)};
+const bundleNameFormat = ${JSON.stringify(bundleNameFormat)};
+const tsconfig = ${JSON.stringify(tsconfig)};
+const cssPublicPath = ${JSON.stringify(cssPublicPath)};
+
+export default {
+  mode: 'production',
+  entry: entrypoint,
+  stats: 'errors-only',
+  output: {
+    path: bundleDirectory,
+    filename: bundleNameFormat,
+    chunkFilename: '[name].[contenthash].js',
+    assetModuleFilename: '[name].[contenthash][ext]',
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        use: [
           {
-            test: /\.tsx?$/,
-            use: [
-              {
-                loader: 'ts-loader',
-                options: {
-                  configFile: tsconfig,
-                },
-              },
-            ],
-            exclude: /node_modules/,
-          },
-          {
-            test: /\.module\.css$/i,
-            use: [
-              {
-                loader: MiniCssExtractPlugin.loader,
-                options: {
-                  publicPath: cssPublicPath,
-                },
-              },
-              'css-loader',
-            ],
+            loader: 'ts-loader',
+            options: {
+              configFile: tsconfig,
+            },
           },
         ],
+        exclude: /node_modules/,
       },
-      plugins: [
-        new MiniCssExtractPlugin({
-          filename: '[name].[contenthash].css',
-        }),
-      ],
-    };
-    // run webpack
+      {
+        test: /\.module\.css$/i,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              publicPath: cssPublicPath,
+            },
+          },
+          'css-loader',
+        ],
+      },
+    ],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: '[name].[contenthash].css',
+    }),
+  ],
+};
+`
+    );
+    // run webpack in a separate process so we get cpu parallelism
     await new Promise<void>((resolve, reject) => {
-      webpack.webpack(webpackConfig, (err, stats) => {
-        if (err) {
-          reject(err);
-          return;
+      const child = spawn(`npx webpack --config ${webpackConfigFile}`, {
+        shell: true,
+        detached: false,
+        env: process.env,
+      });
+      child.on('exit', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`webpack exited with code ${code}`));
         }
-        if (stats !== undefined && stats.hasErrors()) {
-          reject(new Error(stats.toString()));
-          return;
-        }
-        resolve();
       });
     });
   } catch (e) {
@@ -230,17 +257,18 @@ hydrateRoot(document, <App {...props} />);
       'web-errors',
       `${os.hostname()} frontend-ssr-web error constructing webpack bundle for ${componentName} with key ${realKey}`
     );
-    throw e;
   } finally {
-    console.debug(`${chalk.gray('webpack:')} ${chalk.gray('cleaning up')} ${bundleForLog}`);
+    console.debug(
+      `${colorNow()} ${chalk.gray('webpack:')} ${chalk.gray('cleaning up')} ${bundleForLog}`
+    );
 
-    for (const filePath of [entrypoint, tsconfig]) {
+    for (const filePath of [entrypoint, tsconfig, webpackConfigFile]) {
       try {
         fs.unlinkSync(filePath);
       } catch (e) {
         hadError = true;
         console.error(
-          `${chalk.redBright('webpack:')} ${chalk.gray(
+          `${colorNow()} ${chalk.redBright('webpack:')} ${chalk.gray(
             'could not delete'
           )} ${bundleForLog}: ${chalk.redBright(inspect(e))}`
         );
@@ -251,13 +279,13 @@ hydrateRoot(document, <App {...props} />);
     const timeTakenPretty = chalk.whiteBright(formatDuration(finishedAt - startedAt));
     if (!hadError) {
       console.debug(
-        `${chalk.gray('webpack:')} ${chalk.gray(
+        `${colorNow()} ${chalk.gray('webpack:')} ${chalk.gray(
           'finished generating bundle for'
         )} ${bundleForLog} ${chalk.gray('in')} ${timeTakenPretty}`
       );
     } else {
       console.error(
-        `${chalk.redBright('webpack:')} ${chalk.gray(
+        `${colorNow()} ${chalk.redBright('webpack:')} ${chalk.gray(
           'finished generating bundle for'
         )} ${bundleForLog} ${chalk.redBright('with errors')} ${chalk.gray('in')} ${timeTakenPretty}`
       );

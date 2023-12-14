@@ -4,8 +4,8 @@ import { staticRouteHandler } from '../../lib/staticRouteHandler';
 const docsRoute: PendingRoute = {
   methods: ['GET'],
   path: '/docs',
-  handler: () =>
-    staticRouteHandler('static/docs.html', {
+  handler: (args) =>
+    staticRouteHandler(args, 'static/docs.html', {
       contentType: 'text/html; charset=utf-8',
     }),
   docs: [],

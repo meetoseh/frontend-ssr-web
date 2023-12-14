@@ -27,6 +27,9 @@ export type CommandLineArgs = {
    * If `rebuild` then routes should clean all artifacts and rebuild
    * them. If `reuse`, then routes should assume that their artifacts
    * are already available.
+   *
+   * If 'reuse', tmp files will be reconstructed if missing, but assumed to be
+   * correct if present.
    */
   artifacts: 'reuse' | 'rebuild';
 
