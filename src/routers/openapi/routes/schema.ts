@@ -185,7 +185,7 @@ export const regenerateSchema = async (routes: RouteWithPrefix[], info: OASInfo)
       (schemaRawGeneratedAt - startedAt).toLocaleString(undefined, {
         maximumFractionDigits: 3,
       })
-    )}ms`
+    )}${chalk.gray('ms')}`
   );
   const schemaIdentity = JSON.stringify(schemaRaw);
   const identityGeneratedAt = performance.now();
@@ -194,7 +194,7 @@ export const regenerateSchema = async (routes: RouteWithPrefix[], info: OASInfo)
       (identityGeneratedAt - schemaRawGeneratedAt).toLocaleString(undefined, {
         maximumFractionDigits: 3,
       })
-    )}ms`
+    )}${chalk.gray('ms')}`
   );
 
   if (!fs.existsSync('build')) {
@@ -219,7 +219,7 @@ export const regenerateSchema = async (routes: RouteWithPrefix[], info: OASInfo)
         (writtenAt - lastWrittenAt).toLocaleString(undefined, {
           maximumFractionDigits: 3,
         })
-      )}ms`
+      )}${chalk.gray('ms')}`
     );
     lastWrittenAt = writtenAt;
   }
@@ -230,6 +230,6 @@ export const regenerateSchema = async (routes: RouteWithPrefix[], info: OASInfo)
       (finishedAt - startedAt).toLocaleString(undefined, {
         maximumFractionDigits: 3,
       })
-    )}ms`
+    )}${chalk.gray('ms')}`
   );
 };
