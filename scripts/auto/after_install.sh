@@ -37,8 +37,8 @@ activate_node_installing_if_necessary() {
 
 rebuild() {
     source /home/ec2-user/config.sh
-    npx webpack --config webpack.config.js 2>&1 | tee /home/ec2-user/webpack-server.log
-    npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve 2>&1 | tee /home/ec2-user/build-server.log
+    npx webpack --config webpack.config.js --color 2>&1 | tee /home/ec2-user/webpack-server.log
+    npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve --color 2>&1 | tee /home/ec2-user/build-server.log
 }
 
 install_basic_dependencies
