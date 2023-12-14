@@ -71,6 +71,7 @@ async function main() {
       'The maximum number of routes to build simultaneously. This is ignored if reusing artifacts. Defaults to 1.',
       '1'
     )
+    .option('--color, --no-color', 'Whether to use color in the console. Defaults to auto-detect')
     .parse();
 
   const optionsRaw = program.opts();
