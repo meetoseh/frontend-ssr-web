@@ -32,6 +32,7 @@ export const staticRouteHandler = async (
   filepath: string,
   options: {
     contentType: string;
+    immutable?: boolean;
   }
 ): Promise<
   (routerPrefix: string) => (req: IncomingMessage, resp: ServerResponse) => CancelablePromise<void>
@@ -67,6 +68,10 @@ export const staticRouteHandler = async (
     }
   }
 
+  const cacheControl = options.immutable
+    ? 'public, max-age=31536000, immutable'
+    : 'public, max-age=2, stale-while-revalidate=10, stale-if-error=86400';
+
   return simpleRouteHandler(async (args) => {
     let accept;
     try {
@@ -101,10 +106,7 @@ export const staticRouteHandler = async (
     args.resp.setHeader('Content-Encoding', coding);
     args.resp.setHeader('Content-Type', options.contentType);
     args.resp.setHeader('X-Content-Type-Options', 'nosniff');
-    args.resp.setHeader(
-      'Cache-Control',
-      'public, max-age=2, stale-while-revalidate=10, stale-if-error=86400'
-    );
+    args.resp.setHeader('Cache-Control', cacheControl);
     return finishWithEncodedServerResponse(args, 'identity', responseStream);
   });
 };

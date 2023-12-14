@@ -61,7 +61,7 @@ async function main() {
   const options = program.opts();
 
   if (options.regenerateSchema) {
-    regenerateSchema(flattenRoutes(), {
+    regenerateSchema(await flattenRoutes(), {
       title: 'Oseh Frontend SSR Web',
       version: '1.0.0',
     });
@@ -157,21 +157,28 @@ async function createRouter(): Promise<RootRouter> {
   const router = createEmptyRootRouter('');
   for (const [prefix, routes] of Object.entries(allRoutes)) {
     for (const route of routes) {
-      addRouteToRootRouter(router, [globalPrefix, prefix], {
-        ...route,
-        handler: await route.handler(),
-      });
+      const realRoutes = typeof route === 'function' ? await route() : [route];
+      for (const realRoute of realRoutes) {
+        addRouteToRootRouter(router, [globalPrefix, prefix], {
+          ...realRoute,
+          handler: await realRoute.handler(),
+          path: typeof realRoute.path === 'string' ? realRoute.path : await realRoute.path(),
+        });
+      }
     }
   }
   addRouteToRootRouter(router, [globalPrefix], constructOpenapiSchemaRoute());
   return router;
 }
 
-function flattenRoutes(): RouteWithPrefix[] {
+async function flattenRoutes(): Promise<RouteWithPrefix[]> {
   const result: RouteWithPrefix[] = [];
   for (const [prefix, routes] of Object.entries(allRoutes)) {
     for (const route of routes) {
-      result.push({ prefix: globalPrefix + prefix, route });
+      const realRoutes = typeof route === 'function' ? await route() : [route];
+      for (const realRoute of realRoutes) {
+        result.push({ prefix: globalPrefix + prefix, route: realRoute });
+      }
     }
   }
   return result;

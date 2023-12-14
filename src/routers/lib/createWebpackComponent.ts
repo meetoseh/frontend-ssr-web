@@ -8,7 +8,7 @@ import webpack from 'webpack';
 import { formatDuration } from '../../lib/formatDuration';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 
-type WebpackComponentArgs = {
+export type WebpackComponentArgs = {
   /**
    * The path to the file containing the component, relative to the project
    * root. Generally starts with `src/routers`. Must contain a default export
@@ -17,7 +17,9 @@ type WebpackComponentArgs = {
   componentPath: string;
 
   /**
-   * JSON-serializable props to pass to the component. Optional
+   * JSON-serializable props to pass to the component. Optional. If
+   * `window.__INITIAL_PROPS__` is set, it will be merged with these props
+   * (preferring `window.__INITIAL_PROPS__`)
    */
   props?: Record<string, any>;
 
@@ -29,11 +31,11 @@ type WebpackComponentArgs = {
   key?: string;
 
   /**
-   * Where the generated bundle should be located, relative to the project
-   * root. Generally starts with `build/routers`. This is not modified by
-   * the key and thus must be unique for each bundle.
+   * The folder where the generated bundle should be located, relative to the
+   * project root. Generally starts with `build/routers`. This is not modified
+   * by the key and thus must be unique for each bundle.
    */
-  bundlePath: string;
+  bundleFolder: string;
 
   /**
    * https://webpack.js.org/configuration/output/#outputpublicpath
@@ -42,7 +44,7 @@ type WebpackComponentArgs = {
    * emitted CSS files will be located. The CSS files will be emitted
    * adjacent to the bundle file.
    *
-   * So for example, if the bundlePath is `build/routers/example/example.bundle.js`,
+   * So for example, if the bundlePath is `build/routers/example`,
    * then there may be a CSS file `build/routers/example/main.css` that is emitted,
    * and it must be served at `${cssPublicPath}/main.css`. So for example, if
    * `cssPublicPath` is `/shared/assets/example`, then the CSS file must be served
@@ -67,7 +69,7 @@ export const createWebpackComponent = async ({
   componentPath,
   props,
   key,
-  bundlePath,
+  bundleFolder,
   cssPublicPath,
 }: WebpackComponentArgs) => {
   // verify componentPath points to a file
@@ -81,9 +83,11 @@ export const createWebpackComponent = async ({
     throw new Error(`Could not access component file at ${componentFullPath}: ${e}`);
   }
 
-  const bundleFullPath = path.resolve(bundlePath);
-  const bundleDirectory = path.dirname(bundleFullPath);
-  const bundleName = path.basename(bundleFullPath);
+  const bundleDirectory = path.resolve(bundleFolder);
+  try {
+    await fs.promises.rm(bundleDirectory, { recursive: true });
+  } catch (e) {}
+  const bundleNameFormat = '[name].[contenthash].js';
 
   const realKey = key ?? 'k' + Math.random().toString(36).substring(3);
 
@@ -121,7 +125,12 @@ export const createWebpackComponent = async ({
       `import { hydrateRoot } from 'react-dom/client';
 import App from './${componentName}';
 
-const props = ${props === undefined ? '{}' : JSON.stringify(props)};
+const bundledProps = ${props === undefined ? '{}' : JSON.stringify(props)};
+const props = Object.assign(
+  {},
+  bundledProps,
+  (window as any)['__INITIAL_PROPS__']
+);
 hydrateRoot(document, <App {...props} />);
 `
     );
@@ -160,7 +169,9 @@ hydrateRoot(document, <App {...props} />);
       entry: entrypoint,
       output: {
         path: bundleDirectory,
-        filename: bundleName,
+        filename: bundleNameFormat,
+        chunkFilename: '[name].[contenthash].js',
+        assetModuleFilename: '[name].[contenthash][ext]',
       },
       resolve: {
         extensions: ['.tsx', '.ts', '.js'],
@@ -193,7 +204,11 @@ hydrateRoot(document, <App {...props} />);
           },
         ],
       },
-      plugins: [new MiniCssExtractPlugin()],
+      plugins: [
+        new MiniCssExtractPlugin({
+          filename: '[name].[contenthash].css',
+        }),
+      ],
     };
     // run webpack
     await new Promise<void>((resolve, reject) => {

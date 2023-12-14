@@ -92,7 +92,8 @@ export type Route = {
   }>;
 };
 
-export type PendingRoute = Omit<Route, 'handler'> & {
+export type PendingRoute = Omit<Route, 'handler' | 'path'> & {
+  path: string | (() => PromiseLike<Route['path']> | Route['path']);
   handler: () => PromiseLike<Route['handler']> | Route['handler'];
 };
 

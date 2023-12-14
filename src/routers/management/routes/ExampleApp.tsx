@@ -4,19 +4,26 @@ import { setVWC } from '../../../uikit/lib/setVWC';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import styles from './ExampleApp.module.css';
 
+export type ExampleAppProps = {
+  initialTodos: string[];
+  stylesheets: string[];
+};
+
 /**
  * The component to render for the example route. This is rendered on the
  * server and also included in the build for the client, so it's important
  * to be careful about the imports on this file
  */
-export const ExampleApp = ({ initialTodos }: { initialTodos: string[] }): ReactElement => {
+export const ExampleApp = ({ initialTodos, stylesheets }: ExampleAppProps): ReactElement => {
   return (
     <html>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <link rel="stylesheet" href="/fonts.css" />
-        <link rel="stylesheet" href="/shared/management/assets/example/main.css" />
+        {stylesheets.map((href, i) => (
+          <link key={i} rel="stylesheet" href={href} />
+        ))}
         <title>Example</title>
       </head>
       <body>
