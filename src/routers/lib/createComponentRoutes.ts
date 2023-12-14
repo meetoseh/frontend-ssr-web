@@ -10,6 +10,7 @@ import { staticRouteHandler } from './staticRouteHandler';
 import { OASPathItem } from './openapi';
 import { simpleRouteHandler } from './simpleRouteHandler';
 import { finishWithServerError } from './finishWithServerError';
+import { CommandLineArgs } from '../../CommandLineArgs';
 
 type BundledAsset = {
   /** The name of the asset, e.g., `main.css` */
@@ -241,12 +242,14 @@ export const createComponentRoutes = <T extends object>({
     {
       methods: ['GET'],
       path: () => routePath,
-      handler: async () => {
-        await createWebpackComponent({
-          componentPath,
-          bundleFolder: buildFolder,
-          cssPublicPath: realAssetsPath,
-        });
+      handler: async (args: CommandLineArgs) => {
+        if (args.artifacts === 'rebuild') {
+          await createWebpackComponent({
+            componentPath,
+            bundleFolder: buildFolder,
+            cssPublicPath: realAssetsPath,
+          });
+        }
         if (outerBundleArgs === undefined) {
           outerBundleArgs = await initBundleArgs();
         }

@@ -35,6 +35,13 @@ activate_node_installing_if_necessary() {
     fi
 }
 
+rebuild() {
+    source /home/ec2-user/config.sh
+    npx webpack --config webpack.config.js
+    npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve
+}
+
 install_basic_dependencies
 activate_node_installing_if_necessary
 npm ci
+rebuild

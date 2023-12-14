@@ -1,6 +1,7 @@
 import * as http from 'http';
 import { CancelablePromise } from '../../lib/CancelablePromise';
 import { OASPathItem } from './openapi';
+import { CommandLineArgs } from '../../CommandLineArgs';
 
 /**
  * Describes a route that can be included within a router.
@@ -93,8 +94,8 @@ export type Route = {
 };
 
 export type PendingRoute = Omit<Route, 'handler' | 'path'> & {
-  path: string | (() => PromiseLike<Route['path']> | Route['path']);
-  handler: () => PromiseLike<Route['handler']> | Route['handler'];
+  path: string | ((args: CommandLineArgs) => PromiseLike<Route['path']> | Route['path']);
+  handler: (args: CommandLineArgs) => PromiseLike<Route['handler']> | Route['handler'];
 };
 
 type ArrayOrSingleItem<T> = T | T[];

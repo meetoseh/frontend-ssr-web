@@ -25,11 +25,8 @@ import {
   READ_TIMEOUT_MESSAGE,
   WRITE_TIMEOUT_MESSAGE,
 } from './routers/lib/errors';
-import {
-  RouteWithPrefix,
-  constructOpenapiSchemaRoute,
-  regenerateSchema,
-} from './routers/openapi/routes/schema';
+import { RouteWithPrefix, constructOpenapiSchemaRoute } from './routers/openapi/routes/schema';
+import { CommandLineArgs } from './CommandLineArgs';
 
 /**
  * Prefix used on all routes
@@ -40,12 +37,6 @@ async function main() {
   const program = new Command();
   program.version('0.0.1');
   program
-    .option(
-      '--regenerate-schema',
-      'Regenerate the OpenAPI schema and exit, ignoring other parameters. Does not usually ' +
-        'need to be run manually as we will invoke it automatically when needed.',
-      false
-    )
     .option('-H, --host <hostname>', 'The host to bind to, e.g, 192.168.1.23')
     .option('-p, --port <port>', 'The port to bind to, e.g, 2999')
     .option(
@@ -56,55 +47,72 @@ async function main() {
       '-k, --ssl-keyfile <path>',
       'The SSL key file to use; if not specified, SSL will not be used'
     )
+    .option(
+      '--reuse-artifacts',
+      'If specified then it is assumed that all build/ artifacts ' +
+        'are already available, as if via previously running without this flag. ' +
+        'If not specified, then all build/ and tmp/ artifacts will be deleted ' +
+        'and regenerated. Note that tmp/ artifacts are generated if missing, ' +
+        'regardless of this flag, but missing build/ artifacts will cause an error ' +
+        'if this flag is set.'
+    )
+    .option(
+      '--no-serve',
+      'If specified, after building artifacts, this exits rather than serving routes. ' +
+        'The generated artifacts will be within build/ and tmp/. Artifacts within ' +
+        'build/ are typically slower to generate than download, whereas those within tmp/ are ' +
+        'typically faster to generate than download'
+    )
     .parse();
 
-  const options = program.opts();
-
-  if (options.regenerateSchema) {
-    regenerateSchema(await flattenRoutes(), {
-      title: 'Oseh Frontend SSR Web',
-      version: '1.0.0',
-    });
-    return;
-  }
-
-  if (options.host === undefined) {
-    console.error('--host is required');
-    process.exit(1);
-  }
-
-  if (options.port === undefined) {
-    console.error('--port is required');
-    process.exit(1);
-  }
-
-  let portNumber: number | undefined = undefined;
-  try {
-    portNumber = parseInt(options.port);
-  } catch (e) {
-    console.error('--port must be a number');
-    process.exit(1);
-  }
-
-  const sslCertfilePath: string | undefined = options.sslCertfile;
-  const sslKeyfilePath: string | undefined = options.sslKeyfile;
-
-  if ((sslCertfilePath === undefined) !== (sslKeyfilePath === undefined)) {
-    console.error('--ssl-certfile and --ssl-keyfile must be specified together');
-    process.exit(1);
-  }
+  const optionsRaw = program.opts();
+  const optionsTyped: CommandLineArgs = {
+    host: optionsRaw.host,
+    port: undefined,
+    sslCertfile: optionsRaw.sslCertfile,
+    sslKeyfile: optionsRaw.sslKeyfile,
+    serve: optionsRaw.serve,
+    artifacts: optionsRaw.reuseArtifacts ? 'reuse' : 'rebuild',
+  };
 
   let cert: Buffer | undefined = undefined;
   let key: Buffer | undefined = undefined;
 
-  if (sslCertfilePath !== undefined && sslKeyfilePath !== undefined) {
-    [cert, key] = await Promise.all([
-      fs.promises.readFile(sslCertfilePath),
-      fs.promises.readFile(sslKeyfilePath),
-    ]);
+  if (optionsTyped.serve) {
+    if (optionsTyped.host === undefined) {
+      console.error('--host is required');
+      process.exit(1);
+    }
+
+    if (optionsRaw.port === undefined) {
+      console.error('--port is required');
+      process.exit(1);
+    }
+
+    try {
+      optionsTyped.port = parseInt(optionsRaw.port);
+    } catch (e) {
+      console.error('--port must be a number');
+      process.exit(1);
+    }
+
+    if ((optionsTyped.sslCertfile === undefined) !== (optionsTyped.sslKeyfile === undefined)) {
+      console.error('--ssl-certfile and --ssl-keyfile must be specified together');
+      process.exit(1);
+    }
+
+    if (optionsTyped.sslCertfile !== undefined && optionsTyped.sslKeyfile !== undefined) {
+      [cert, key] = await Promise.all([
+        fs.promises.readFile(optionsTyped.sslCertfile),
+        fs.promises.readFile(optionsTyped.sslKeyfile),
+      ]);
+    }
   }
 
-  const router = await createRouter();
+  const router = await createRouter(optionsTyped);
+  if (!optionsTyped.serve) {
+    return;
+  }
 
   let updaterRaw: CancelablePromise<void> | undefined = undefined;
   await new Promise<void>((resolve) => {
@@ -117,8 +125,8 @@ async function main() {
 
   const requestHandler = handleRequests({
     router,
-    host: options.host,
-    port: portNumber,
+    host: optionsTyped.host!,
+    port: optionsTyped.port!,
     cert,
     key,
   });
@@ -149,7 +157,7 @@ async function main() {
   }
 }
 
-async function createRouter(): Promise<RootRouter> {
+async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
   try {
     fs.mkdirSync('tmp');
   } catch (e) {}
@@ -161,13 +169,18 @@ async function createRouter(): Promise<RootRouter> {
       for (const realRoute of realRoutes) {
         addRouteToRootRouter(router, [globalPrefix, prefix], {
           ...realRoute,
-          handler: await realRoute.handler(),
-          path: typeof realRoute.path === 'string' ? realRoute.path : await realRoute.path(),
+          handler: await realRoute.handler(opts),
+          path: typeof realRoute.path === 'string' ? realRoute.path : await realRoute.path(opts),
         });
       }
     }
   }
-  addRouteToRootRouter(router, [globalPrefix], constructOpenapiSchemaRoute());
+  const openapiRoute = constructOpenapiSchemaRoute(opts, flattenRoutes);
+  addRouteToRootRouter(router, [globalPrefix], {
+    ...openapiRoute,
+    handler: await openapiRoute.handler(opts),
+    path: typeof openapiRoute.path === 'string' ? openapiRoute.path : await openapiRoute.path(opts),
+  });
   return router;
 }
 

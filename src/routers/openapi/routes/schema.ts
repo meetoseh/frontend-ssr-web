@@ -6,7 +6,7 @@ import {
   selectEncoding,
   supportedEncodings,
 } from '../../lib/acceptEncoding';
-import { Route } from '../../lib/route';
+import { PendingRoute, Route } from '../../lib/route';
 import * as fs from 'fs';
 import chalk from 'chalk';
 import { Readable } from 'stream';
@@ -20,6 +20,7 @@ import { AcceptMediaRangeWithoutWeight, parseAccept, selectAccept } from '../../
 import { BAD_REQUEST_MESSAGE } from '../../lib/errors';
 import { finishWithBadRequest } from '../../lib/finishWithBadRequest';
 import { finishWithNotAcceptable } from '../../lib/finishWithNotAcceptable';
+import { CommandLineArgs } from '../../../CommandLineArgs';
 
 const acceptable: AcceptMediaRangeWithoutWeight[] = [
   { type: 'application', subtype: 'json', parameters: { charset: 'utf-8' } },
@@ -46,70 +47,72 @@ const acceptable: AcceptMediaRangeWithoutWeight[] = [
  * returned route will perpetually return 503 for those failed encodings until
  * regenerated, such as by restarting the server.
  */
-export const constructOpenapiSchemaRoute = (): Route => {
-  deleteSchemaSync();
-  spawn(
-    'npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --regenerate-schema',
-    {
-      shell: true,
-      detached: false,
-      env: process.env,
-    }
-  );
-
+export const constructOpenapiSchemaRoute = (
+  args: CommandLineArgs,
+  getFlatRoutes: () => Promise<RouteWithPrefix[]>
+): PendingRoute => {
   return {
     methods: ['GET'],
     path: '/openapi.json',
-    handler: simpleRouteHandler(async (args) => {
-      const coding = selectEncoding(parseAcceptEncoding(args.req.headers['accept-encoding']));
-      if (coding === null) {
-        return finishWithBadEncoding(args);
-      }
-
-      let accept;
-      try {
-        accept = selectAccept(parseAccept(args.req.headers['accept']), acceptable);
-      } catch (e) {
-        if (e instanceof Error && e.message === BAD_REQUEST_MESSAGE) {
-          return finishWithBadRequest(args);
-        }
-        throw e;
-      }
-
-      if (accept === undefined) {
-        return finishWithNotAcceptable(args, acceptable);
-      }
-
-      if (!fs.existsSync(pathToEncoding(coding))) {
-        return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
-      }
-
-      let responseStream;
-      try {
-        responseStream = fs.createReadStream(pathToEncoding(coding), {
-          autoClose: true,
+    handler: async () => {
+      if (args.artifacts === 'rebuild') {
+        const flatRoutes = await getFlatRoutes();
+        await regenerateSchema(flatRoutes, {
+          title: 'Oseh Frontend SSR Web',
+          version: '1.0.0',
         });
-      } catch (e) {
-        return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
       }
+      return simpleRouteHandler(async (args) => {
+        const coding = selectEncoding(parseAcceptEncoding(args.req.headers['accept-encoding']));
+        if (coding === null) {
+          return finishWithBadEncoding(args);
+        }
 
-      args.resp.statusCode = 200;
-      args.resp.statusMessage = 'OK';
-      args.resp.setHeader('Vary', STANDARD_VARY_RESPONSE);
-      args.resp.setHeader('Content-Encoding', coding);
-      args.resp.setHeader('Content-Type', 'application/json; charset=utf-8');
-      return finishWithEncodedServerResponse(args, 'identity', responseStream);
-    }),
+        let accept;
+        try {
+          accept = selectAccept(parseAccept(args.req.headers['accept']), acceptable);
+        } catch (e) {
+          if (e instanceof Error && e.message === BAD_REQUEST_MESSAGE) {
+            return finishWithBadRequest(args);
+          }
+          throw e;
+        }
+
+        if (accept === undefined) {
+          return finishWithNotAcceptable(args, acceptable);
+        }
+
+        if (!fs.existsSync(pathToEncoding(coding))) {
+          return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
+        }
+
+        let responseStream;
+        try {
+          responseStream = fs.createReadStream(pathToEncoding(coding), {
+            autoClose: true,
+          });
+        } catch (e) {
+          return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
+        }
+
+        args.resp.statusCode = 200;
+        args.resp.statusMessage = 'OK';
+        args.resp.setHeader('Vary', STANDARD_VARY_RESPONSE);
+        args.resp.setHeader('Content-Encoding', coding);
+        args.resp.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return finishWithEncodedServerResponse(args, 'identity', responseStream);
+      });
+    },
     docs: [],
   };
 };
 
 const pathToEncoding = (encoding: string) => {
-  return `tmp/openapi-schema.json.${encoding}`;
+  return `build/openapi-schema.json.${encoding}`;
 };
 
 const deleteSchemaSync = () => {
-  if (!fs.existsSync('tmp')) {
+  if (!fs.existsSync('build')) {
     return;
   }
 
@@ -194,8 +197,8 @@ export const regenerateSchema = async (routes: RouteWithPrefix[], info: OASInfo)
     )}ms`
   );
 
-  if (!fs.existsSync('tmp')) {
-    fs.mkdirSync('tmp');
+  if (!fs.existsSync('build')) {
+    fs.mkdirSync('build');
   }
 
   let lastWrittenAt = identityGeneratedAt;
