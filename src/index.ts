@@ -387,9 +387,9 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
     for (const route of routes) {
       // awaits here are optional and do not affect the parallelism factor
       if (typeof route === 'function') {
-        await initRoutesThenRealizeEachThenAddToRootRouter([globalPrefix + prefix], route);
+        await initRoutesThenRealizeEachThenAddToRootRouter([globalPrefix, prefix], route);
       } else {
-        await realizeRouteAndAddToRootRouter([globalPrefix + prefix], route);
+        await realizeRouteAndAddToRootRouter([globalPrefix, prefix], route);
       }
     }
   }

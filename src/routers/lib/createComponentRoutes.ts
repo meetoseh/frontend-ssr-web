@@ -339,7 +339,7 @@ export const createComponentRoutes = async <T extends object>({
         const bundleArgs = outerBundleArgs;
 
         return (routerPrefixRaw: string) => {
-          const realPrefix = routerPrefixRaw + '/example-assets';
+          const realPrefix = routerPrefixRaw + realAssetsPath;
           const prefixedAssetsBySuffix = Object.fromEntries(
             Object.entries(bundleArgs.assetsBySuffix).map(([suffix, asset]) => [
               suffix,
