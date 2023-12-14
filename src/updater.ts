@@ -186,10 +186,12 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
       }
 
       let updaterScript = '/home/ec2-user/update_webapp.sh';
-      spawn(`bash ${updaterScript}`, {
+      const ref = spawn(`bash ${updaterScript}`, {
         shell: true,
         detached: true,
+        stdio: 'ignore',
       });
+      ref.unref();
     }
   });
 
