@@ -2,7 +2,6 @@ import path from 'path'
 import nodeExternals from 'webpack-node-externals'
 
 export default {
-  mode: 'production',
   target: 'node',
   externalsPresets: { node: true },
   externals: [nodeExternals({

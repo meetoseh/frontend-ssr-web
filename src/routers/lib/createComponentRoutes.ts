@@ -367,8 +367,10 @@ export const createComponentRoutes = async <T extends object>({
             args.state.finishing = true;
             try {
               await cancelable.promise;
+              args.state.done = true;
               args.resolve();
             } catch (e) {
+              args.state.done = true;
               args.reject(e);
             }
           })(realPrefix);

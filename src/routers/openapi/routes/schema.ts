@@ -11,7 +11,6 @@ import * as fs from 'fs';
 import chalk from 'chalk';
 import { Readable } from 'stream';
 import { OpenAPI, OASInfo, OASPaths } from '../../lib/openapi';
-import { spawn } from 'child_process';
 import { simpleRouteHandler } from '../../lib/simpleRouteHandler';
 import { finishWithBadEncoding } from '../../lib/finishWithBadEncoding';
 import { finishWithServiceUnavailable } from '../../lib/finishWithServiceUnavailable';

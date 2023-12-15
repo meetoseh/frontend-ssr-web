@@ -420,6 +420,7 @@ export const finishWithEncodedServerResponse = async (
 
     args.state.finishing = true;
     args.state.cancelers.call(undefined);
+    args.state.done = true;
     args.reject(e);
     return;
   }
@@ -431,6 +432,7 @@ export const finishWithEncodedServerResponse = async (
 
   args.state.finishing = true;
   args.state.cancelers.call(undefined);
+  args.state.done = true;
   if (error === undefined) {
     args.resolve();
   } else {

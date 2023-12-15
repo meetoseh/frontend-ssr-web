@@ -176,6 +176,7 @@ hydrateRoot(document, <App {...props} />);
       })
     );
     // webpack config
+    const webpackMode = process.env.ENVIRONMENT === 'dev' ? 'development' : 'production';
     await fs.promises.writeFile(
       webpackConfigFile,
       `// AUTO GENERATED
@@ -186,9 +187,10 @@ const bundleDirectory = ${JSON.stringify(bundleDirectory)};
 const bundleNameFormat = ${JSON.stringify(bundleNameFormat)};
 const tsconfig = ${JSON.stringify(tsconfig)};
 const cssPublicPath = ${JSON.stringify(cssPublicPath)};
+const webpackMode = ${JSON.stringify(webpackMode)};
 
 export default {
-  mode: 'production',
+  mode: webpackMode,
   entry: entrypoint,
   stats: 'errors-only',
   output: {

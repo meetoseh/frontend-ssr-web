@@ -35,13 +35,48 @@ activate_node_installing_if_necessary() {
     fi
 }
 
+install_deployment_dependencies() {
+    cd deployment
+    if [ ! -d venv ]
+    then
+        python3 -m venv venv
+    fi
+    source venv/bin/activate
+    python -m pip install -U pip
+    pip install --no-deps -r requirements.txt
+    deactivate
+    cd ..
+}
+
+download_build() {
+    rm -rf build
+    rm -rf tmp
+    rm -f build.tar.gz
+    
+    if ! aws s3 cp s3://$OSEH_S3_BUCKET_NAME/builds/frontend-ssr/build.tar.gz build.tar.gz
+    then
+        return 1
+    fi
+    
+    tar -xzf build.tar.gz
+}
+
 rebuild() {
     source /home/ec2-user/config.sh
-    npx webpack --config webpack.config.js --color 2>&1 | tee /home/ec2-user/webpack-server.log
+    npx webpack --config webpack.config.js --mode production --color 2>&1 | tee /home/ec2-user/webpack-server.log
     npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve --color 2>&1 | tee /home/ec2-user/build-server.log
+}
+
+download_build_or_rebuild() {
+    if ! download_build
+    then
+        echo 'Performing local build as no build is available, may take a while...'
+        rebuild
+    fi
 }
 
 install_basic_dependencies
 activate_node_installing_if_necessary
 npm ci
-rebuild
+install_deployment_dependencies
+download_build_or_rebuild

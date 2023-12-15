@@ -20,23 +20,26 @@ export const simpleRouteHandler = (
   return () => {
     return (req, resp) =>
       constructCancelablePromise<void>({
-        body: (state, resolve, reject) => {
-          body({
-            state,
-            resolve,
-            reject,
-            req,
-            resp,
-            canceled: createCancelablePromiseFromCallbacks(state.cancelers),
-          }).catch((e) => {
+        body: async (state, resolve, reject) => {
+          try {
+            await body({
+              state,
+              resolve,
+              reject,
+              req,
+              resp,
+              canceled: createCancelablePromiseFromCallbacks(state.cancelers),
+            });
+          } catch (e) {
             if (!state.finishing) {
               state.finishing = true;
               resp.statusCode = 500;
               resp.statusMessage = 'Internal Server Error';
               resp.end();
             }
+            state.done = true;
             reject(e);
-          });
+          }
         },
       });
   };

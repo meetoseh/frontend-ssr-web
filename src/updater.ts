@@ -9,6 +9,10 @@ import { HostAndPort, discoverMasterUsingSentinels, subscribeForOneMessage } fro
 import redis from 'redis';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
+import { inspect } from 'util';
+import { sendMessageTo, sendMessageToCancelable } from './slack';
+import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
+import os from 'os';
 
 export function handleUpdates(onReady: () => void): CancelablePromise<void> {
   let done = false;
@@ -39,9 +43,115 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
 
     try {
       const canceled = createCancelablePromiseFromCallbacks(cancelers);
+
+      if (process.env.ENVIRONMENT !== 'dev') {
+        console.log(`${colorNow()} ${chalk.gray('checking if rebuild required..')}`);
+        const rebuildRequired = checkIfRebuildRequired();
+        cancelers.add(rebuildRequired.cancel);
+        try {
+          await Promise.race([canceled.promise, rebuildRequired.promise]);
+        } finally {
+          cancelers.remove(rebuildRequired.cancel);
+        }
+        if (doneTentatively) {
+          return;
+        }
+
+        let isRebuildRequired = false;
+        try {
+          isRebuildRequired = await rebuildRequired.promise;
+        } catch (e) {
+          if (doneTentatively) {
+            return;
+          }
+          console.error(
+            `${colorNow()} ${chalk.redBright('error checking if rebuild required')}:\n${chalk.white(
+              inspect(e)
+            )}`
+          );
+          try {
+            const sent = sendMessageToCancelable(
+              'web-errors',
+              'frontend-ssr-web error checking if rebuild required'
+            );
+            cancelers.add(sent.cancel);
+            try {
+              await Promise.race([canceled.promise, sent.promise]);
+            } finally {
+              cancelers.remove(sent.cancel);
+            }
+          } catch (e) {
+            console.error(
+              `${colorNow()} ${chalk.redBright(
+                'error sending message to slack channel web-errors'
+              )}:\n${chalk.white(inspect(e))}`
+            );
+          }
+        }
+
+        if (isRebuildRequired) {
+          console.log(`${colorNow()} ${chalk.whiteBright('updater handling rebuild...')}`);
+
+          await (async () => {
+            const sent = sendMessageToCancelable(
+              'ops',
+              `frontend-ssr-web ${os.hostname()} handling rebuild`
+            );
+            cancelers.add(sent.cancel);
+            try {
+              await Promise.race([sent.promise, canceled.promise]);
+            } finally {
+              cancelers.remove(sent.cancel);
+            }
+          })();
+          if (doneTentatively) {
+            return;
+          }
+
+          const rebuild = handleRebuild();
+          cancelers.add(rebuild.cancel);
+          try {
+            await Promise.race([canceled.promise, rebuild.promise]);
+          } finally {
+            cancelers.remove(rebuild.cancel);
+          }
+          if (doneTentatively) {
+            return;
+          }
+
+          console.log(
+            `${colorNow()} ${chalk.whiteBright('updater finished rebuild, restarting again')}`
+          );
+
+          await (async () => {
+            const sent = sendMessageToCancelable(
+              'ops',
+              `frontend-ssr-web ${os.hostname()} restarting again`
+            );
+            cancelers.add(sent.cancel);
+            try {
+              await Promise.race([sent.promise, canceled.promise]);
+            } finally {
+              cancelers.remove(sent.cancel);
+            }
+          })();
+          if (doneTentatively) {
+            return;
+          }
+
+          await doUpdate();
+          doneTentatively = true;
+          return;
+        }
+      }
+
       const updateLockReleased = releaseUpdateLockIfHeld();
       cancelers.add(updateLockReleased.cancel);
-      await Promise.race([canceled.promise, updateLockReleased.promise]);
+      try {
+        await Promise.race([canceled.promise, updateLockReleased.promise]);
+      } finally {
+        cancelers.remove(updateLockReleased.cancel);
+      }
       if (doneTentatively) {
         return;
       }
@@ -50,7 +160,26 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
       onReady();
       await handle();
     } catch (e) {
-      console.error(e);
+      console.error(
+        `${colorNow()} ${chalk.redBright('updater encountered an error')}:\n${chalk.white(
+          inspect(e)
+        )}`
+      );
+      if (!doneTentatively) {
+        console.debug(`${colorNow()} ${chalk.gray('sending error to slack...')}`);
+        const sent = sendMessageToCancelable(
+          'web-errors',
+          'frontend-ssr-web updater encountered an error'
+        );
+        cancelers.add(sent.cancel);
+        const canceled = createCancelablePromiseFromCallbacks(cancelers);
+        try {
+          await Promise.race([canceled.promise, sent.promise]);
+        } finally {
+          cancelers.remove(sent.cancel);
+          canceled.cancel();
+        }
+      }
     } finally {
       fs.unlinkSync('updater.lock');
       done = true;
@@ -520,3 +649,285 @@ if current == expected then
 end
 return 0
 `;
+
+/**
+ * Uses redis to check if the latest completed build matches the current git commit.
+ * If it does, resolves false, otherwise resolves true.
+ */
+function checkIfRebuildRequired(): CancelablePromise<boolean> {
+  return constructCancelablePromise({
+    body: async (state, resolve, reject) => {
+      const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      let currentGitHash;
+      try {
+        currentGitHash = await new Promise<string>((resolve, reject) => {
+          console.log(`${colorNow()} ${chalk.gray('checking current git hash...')}`);
+          const ref = spawn('git rev-parse HEAD', {
+            shell: true,
+            stdio: 'pipe',
+          });
+          let stdout = '';
+          let stderr = '';
+          ref.stdout.on('data', (data) => {
+            stdout += data.toString();
+          });
+          ref.stderr.on('data', (data) => {
+            stderr += data.toString();
+          });
+          ref.on('error', (e) => {
+            reject(e);
+          });
+          ref.on('close', (code) => {
+            if (code !== 0) {
+              console.log(`${colorNow()} ${chalk.redBright('stdout: ' + stdout)}`);
+              console.log(`${colorNow()} ${chalk.redBright('stderr: ' + stderr)}`);
+
+              reject(new Error(`git rev-parse HEAD exited with code ${code}`));
+              return;
+            }
+            resolve(stdout.trim());
+          });
+        });
+      } catch (e) {
+        if (state.finishing) {
+          state.done = true;
+          reject(new Error('canceled'));
+          return;
+        } else {
+          state.done = true;
+          reject(e);
+          return;
+        }
+      }
+
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      console.log(
+        `${colorNow()} ${chalk.gray('current commit hash:')} ${chalk.white(currentGitHash)}`
+      );
+
+      const sentinels = getRedisSentinels();
+      const masterCancelable = discoverMasterUsingSentinels({
+        sentinels,
+        minOtherSentinels: Math.floor(sentinels.length / 2),
+        maxRetries: undefined,
+      });
+      state.cancelers.add(masterCancelable.cancel);
+      try {
+        await Promise.race([canceled.promise, masterCancelable.promise]);
+      } finally {
+        state.cancelers.remove(masterCancelable.cancel);
+      }
+
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      const master = await masterCancelable.promise;
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      const client = redis.createClient({
+        url: `redis://${master.host}:${master.port}`,
+        socket: {
+          connectTimeout: 2000,
+          reconnectStrategy: false,
+        },
+      });
+
+      state.cancelers.add(() => {
+        client.quit().catch(() => {
+          client.disconnect().catch(() => {});
+        });
+      });
+
+      const commandPromise = client.set('builds:frontend-ssr-web:hash', currentGitHash, {
+        GET: true,
+      });
+      try {
+        await Promise.race([canceled.promise, commandPromise]);
+      } catch (e) {
+        if (state.finishing) {
+          state.done = true;
+          reject(new Error('canceled'));
+          return;
+        } else {
+          state.done = true;
+          reject(e);
+          return;
+        }
+      }
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      const oldHash = await commandPromise;
+      if (state.finishing) {
+        state.done = true;
+        reject(new Error('canceled'));
+        return;
+      }
+
+      client.quit().catch(() => {
+        client.disconnect().catch(() => {});
+      });
+
+      if (oldHash === null) {
+        console.log(`${colorNow()} ${chalk.redBright('no previous build hash found')}`);
+        state.finishing = true;
+        state.done = true;
+        resolve(true);
+        return;
+      } else if (oldHash !== currentGitHash) {
+        console.log(
+          `${colorNow()} ${chalk.gray('previous build')} ${chalk.white(oldHash)} ${chalk.red(
+            'git hash does not match'
+          )} ${chalk.gray('current')} ${chalk.white(currentGitHash)}`
+        );
+        state.finishing = true;
+        state.done = true;
+        resolve(true);
+        return;
+      } else {
+        console.log(
+          `${colorNow()} ${chalk.gray('previous build')} ${chalk.white(oldHash)} ${chalk.green(
+            'git hash matches'
+          )} ${chalk.gray('current')} ${chalk.white(currentGitHash)}`
+        );
+        state.finishing = true;
+        state.done = true;
+        resolve(false);
+        return;
+      }
+    },
+  });
+}
+
+/**
+ * Executes scripts/trigger_build.sh, which calls into deployment/trigger_build.py
+ * to manage spawning a new EC2 instance to produce the build/ directory
+ */
+function handleRebuild(): CancelablePromise<void> {
+  return constructCancelablePromise({
+    body: async (state, resolve, reject) => {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          if (state.finishing) {
+            reject(new Error('canceled'));
+            return;
+          }
+
+          const ref = spawn('bash scripts/trigger_build.sh', {
+            shell: true,
+            stdio: 'inherit',
+          });
+          let handlingKill = false;
+          let processClosed = false;
+          const processClosedCallbacks = new Callbacks<undefined>();
+
+          const killProcess = async () => {
+            if (processClosed || handlingKill) {
+              return;
+            }
+            handlingKill = true;
+            state.cancelers.remove(killProcess);
+            console.log(
+              `${colorNow()} ${chalk.white('sending')} ${chalk.cyan(
+                'SIGINT'
+              )} to rebuild process and allowing 6s...`
+            );
+            const closed = createCancelablePromiseFromCallbacks(processClosedCallbacks);
+            const sigintTimeout = createCancelableTimeout(6000);
+            ref.kill('SIGINT');
+            await Promise.race([closed.promise, sigintTimeout.promise]);
+            sigintTimeout.cancel();
+            if (processClosed) {
+              return;
+            }
+            console.log(
+              `${colorNow()} ${chalk.white('sending')} ${chalk.yellow(
+                'SIGTERM'
+              )} to rebuild process and allowing 6s...`
+            );
+            const sigtermTimeout = createCancelableTimeout(6000);
+            ref.kill('SIGTERM');
+            await Promise.race([closed.promise, sigtermTimeout.promise]);
+            sigtermTimeout.cancel();
+            if (processClosed) {
+              return;
+            }
+            console.log(
+              `${colorNow()} ${chalk.white('sending')} ${chalk.redBright(
+                'SIGKILL'
+              )} to rebuild process and allowing 1s...`
+            );
+            const sigkillTimeout = createCancelableTimeout(1000);
+            ref.kill('SIGKILL');
+            await Promise.race([closed.promise, sigkillTimeout.promise]);
+            sigkillTimeout.cancel();
+            if (processClosed) {
+              return;
+            }
+            console.log(`${colorNow()} ${chalk.redBright('failed to kill rebuild process')}`);
+          };
+          state.cancelers.add(killProcess);
+          ref.on('close', (code) => {
+            console.log(
+              `${colorNow()} ${chalk.white('rebuild process exited with code')} ${
+                code === 0
+                  ? chalk.greenBright(code.toString())
+                  : chalk.redBright(inspect(code, { colors: false }))
+              }`
+            );
+            processClosed = true;
+            processClosedCallbacks.call(undefined);
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`rebuild process exited with code ${code}`));
+            }
+          });
+          ref.on('error', (e) => {
+            console.log(
+              `${colorNow()} ${chalk.redBright('rebuild process encountered an error:')} ${inspect(
+                e,
+                { colors: chalk.level >= 1 }
+              )}`
+            );
+            processClosed = true;
+            processClosedCallbacks.call(undefined);
+            reject(e);
+          });
+        });
+        if (!state.finishing) {
+          state.finishing = true;
+          state.done = true;
+          resolve();
+        }
+      } catch (e) {
+        if (!state.finishing) {
+          state.finishing = true;
+          state.done = true;
+          reject(e);
+        }
+      }
+    },
+  });
+}

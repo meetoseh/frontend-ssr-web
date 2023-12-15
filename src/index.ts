@@ -279,15 +279,15 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
         try {
           const handler = await route.handler(opts);
           if (state.finishing) {
-            reject(new Error('canceled'));
             state.done = true;
+            reject(new Error('canceled'));
             return;
           }
 
           const path = typeof route.path === 'string' ? route.path : await route.path(opts);
           if (state.finishing) {
-            reject(new Error('canceled'));
             state.done = true;
+            reject(new Error('canceled'));
             return;
           }
 
@@ -297,12 +297,12 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
             path,
           });
           state.finishing = true;
-          resolve();
           state.done = true;
+          resolve();
         } catch (e) {
           state.finishing = true;
-          reject(e);
           state.done = true;
+          reject(e);
         }
       },
     });
@@ -343,23 +343,23 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
         try {
           const realRoutes = await routes(opts);
           if (state.finishing) {
-            reject(new Error('canceled'));
             state.done = true;
+            reject(new Error('canceled'));
             return;
           }
 
           for (const route of realRoutes) {
             const handler = await route.handler(opts);
             if (state.finishing) {
-              reject(new Error('canceled'));
               state.done = true;
+              reject(new Error('canceled'));
               return;
             }
 
             const path = typeof route.path === 'string' ? route.path : await route.path(opts);
             if (state.finishing) {
-              reject(new Error('canceled'));
               state.done = true;
+              reject(new Error('canceled'));
               return;
             }
 
@@ -370,12 +370,12 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
             });
           }
           state.finishing = true;
-          resolve();
           state.done = true;
+          resolve();
         } catch (e) {
           state.finishing = true;
-          reject(e);
           state.done = true;
+          reject(e);
         }
       },
     });

@@ -1,5 +1,8 @@
+import chalk from 'chalk';
 import { Callbacks } from './Callbacks';
 import { CancelablePromise } from './CancelablePromise';
+import { inspect } from 'util';
+import { colorNow } from '../logging';
 
 /**
  * A constructed cancelable promise is a specific type of cancelable
@@ -89,7 +92,20 @@ type CancelablePromiseConstructor<T> = {
     state: CancelablePromiseState,
     resolve: (value: T | PromiseLike<T>) => void,
     reject: (reason?: any) => void
-  ) => void;
+  ) => undefined | { finally: (onfinally: () => void) => void };
+
+  /**
+   * If set to true, then the body will be wrapped in a try/finally block
+   * which will reject the promise if the body returns before calling
+   * resolve or reject. Defaults to false, in which case an error will
+   * be thrown if the body returns before calling resolve or reject in
+   * dev mode, and the promise will be rejected in prod mode.
+   *
+   * This should only be set when prototyping, as how done() works is
+   * very subtle, and setting done explicitly makes it more clear how
+   * it works
+   */
+  guardBody?: boolean;
 };
 
 /**
@@ -98,9 +114,38 @@ type CancelablePromiseConstructor<T> = {
  */
 export type CancelablePromiseState = {
   /**
-   * If the promise has already resolved or rejected, such that its
-   * finally() callback has been called. You do not typically need
-   * to check this value
+   * Starts false and is set to true immediately before calling resolve() or reject().
+   *
+   * This means that awaiting the promise will queue the callback to be run as soon
+   * as possible. In other words:
+   *
+   * ```ts
+   * if (cancelable.done()) {
+   *   console.log("A")
+   *   await cancelable.promise;
+   *   console.log("B")
+   * }
+   * ```
+   *
+   * between A and B control was yielded to the event loop, so there may be other
+   * code that runs in between, but continuation will occur as soon as CPU time
+   * is available, rather than e.g. waiting on network IO.
+   *
+   * In other words, the following should have the same characteristics:
+   *
+   * ```ts
+   * // 1, assuming cancelable.done()
+   * console.log('A');
+   * cancelable.promise.finally(() => {
+   *   console.log('B');
+   * });
+   *
+   * // 2
+   * console.log('A');
+   * setImmediate(() => {
+   *   console.log('B');
+   * });
+   * ```
    */
   done: boolean;
   /**
@@ -164,7 +209,76 @@ export const constructCancelablePromise = <T>(
       }
 
       rejectCanceled = () => reject(new Error('canceled'));
-      constructor.body(state, resolve, reject);
+
+      let bodyResolvedOrRejected = false;
+      const ensureDone = () => {
+        if (!state.done) {
+          console.trace(
+            `${colorNow()}: ${chalk.redBright(
+              'body called resolve() without setting state.done'
+            )}: ${chalk.white(inspect(constructor))}`
+          );
+
+          state.done = true;
+          if (process.env.ENVIRONMENT === 'dev') {
+            reject(new Error('body called resolve() or reject() without setting state.done'));
+          }
+          return;
+        }
+      };
+
+      const wrappedResolve = (v: T | PromiseLike<T>) => {
+        ensureDone();
+        bodyResolvedOrRejected = true;
+        resolve(v);
+      };
+
+      const wrappedReject = (e: any) => {
+        ensureDone();
+        bodyResolvedOrRejected = true;
+        reject(e);
+      };
+
+      let handledCleanup = false;
+      const cleanup = () => {
+        if (handledCleanup) {
+          return;
+        }
+        handledCleanup = true;
+
+        if (bodyResolvedOrRejected) {
+          return;
+        }
+
+        if (constructor.guardBody) {
+          wrappedReject(new Error('body returned without resolving or rejecting'));
+        } else {
+          console.log(
+            `${colorNow()}: ${chalk.redBright(
+              'body returned without resolving or rejecting'
+            )}: ${chalk.white(inspect(constructor))}`
+          );
+
+          if (process.env.ENVIRONMENT === 'dev') {
+            throw new Error('body returned without resolving or rejecting');
+          } else {
+            wrappedReject(new Error('body returned without resolving or rejecting'));
+          }
+        }
+      };
+
+      let hadPromise = false;
+      try {
+        const result = constructor.body(state, wrappedResolve, wrappedReject);
+        if (result !== undefined) {
+          hadPromise = true;
+          result.finally(cleanup);
+        }
+      } finally {
+        if (!hadPromise) {
+          cleanup();
+        }
+      }
     }),
   };
 };
