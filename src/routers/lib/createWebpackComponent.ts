@@ -165,7 +165,7 @@ hydrateRoot(document, <App {...props} />);
           resolveJsonModule: true,
           isolatedModules: true,
           noEmit: false,
-          sourceMap: true,
+          sourceMap: false,
           jsx: 'react-jsx',
           plugins: [{ name: 'typescript-plugin-css-modules' }],
         },
@@ -200,7 +200,7 @@ export default {
     chunkFilename: '[name].[contenthash].js',
     assetModuleFilename: '[name].[contenthash][ext]',
   },
-  devtool: 'none',
+  devtool: false,
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
   },
@@ -242,21 +242,35 @@ export default {
     );
     // run webpack in a separate process so we get cpu parallelism
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(`npx webpack --config ${webpackConfigFile}`, {
+      const child = spawn(`npx webpack --config ${webpackConfigFile} --color`, {
         shell: true,
         detached: false,
         env: process.env,
+        stdio: 'pipe',
       });
       child.on('exit', (code) => {
         if (code === 0) {
           resolve();
         } else {
+          const stdout = child.stdout.read();
+          const stderr = child.stderr.read();
+          console.log(
+            `${colorNow()} ${chalk.whiteBright('webpack stdout:\n')}${chalk.white(stdout)}`
+          );
+          console.error(
+            `${colorNow()} ${chalk.redBright('webpack stderr:\n')}${chalk.red(stderr)}`
+          );
           reject(new Error(`webpack exited with code ${code}`));
         }
       });
     });
   } catch (e) {
     hadError = true;
+    console.error(
+      `${colorNow()} ${chalk.redBright('error constructing webpack bundle for')} ${chalk.cyanBright(
+        componentName
+      )}${chalk.white(':')}\n${inspect(e, { colors: chalk.level >= 1 })}`
+    );
     await slack.sendMessageTo(
       'web-errors',
       `${os.hostname()} frontend-ssr-web error constructing webpack bundle for ${componentName} with key ${realKey}`
