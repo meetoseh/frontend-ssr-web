@@ -49,6 +49,7 @@ def exec_simple(
             stdout_closed = False
             stderr_closed = False
             made_progress_last_time = False
+            need_flush = False
 
             while not chan.exit_status_ready():
                 if time.time() - last_printed_at > 10:
@@ -56,7 +57,13 @@ def exec_simple(
                     last_printed_at = time.time()
 
                 if not made_progress_last_time:
+                    if need_flush:
+                        stdout_file.flush()
+                        stderr_file.flush()
+                        need_flush = False
                     time.sleep(0.1)
+                else:
+                    need_flush = True
 
                 made_progress_last_time = False
                 if not stdout_closed and chan.recv_ready():
