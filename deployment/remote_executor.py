@@ -5,6 +5,7 @@ from typing import Tuple
 import paramiko
 from deployment.temp_files import temp_dir
 from loguru import logger
+import select
 
 
 def exec_simple(
@@ -41,9 +42,10 @@ def exec_simple(
             chan = transport.open_session(timeout=timeout)
             chan.settimeout(cmd_timeout)
             chan.exec_command(command)
-            logger.debug("command written to channel, waiting for exit status...")
+            logger.debug("command written to channel, connecting to stdio...")
             stdout = chan.makefile("r", 8192)
             stderr = chan.makefile_stderr("r", 8192)
+            logger.debug("stdio connected, starting stdio loop...")
 
             started_at = time.time()
             last_printed_at = started_at
@@ -55,14 +57,16 @@ def exec_simple(
 
                 time.sleep(0.1)
 
-                from_stdout = stdout.read(4096)
-                from_stderr = stderr.read(4096)
-
-                if from_stdout is not None:
-                    stdout_file.write(from_stdout)
-
-                if from_stderr is not None:
-                    stderr_file.write(from_stderr)
+                rl, wl, xl = select.select([stdout, stderr], [], [], 0.0)
+                if len(rl) > 0:
+                    if stdout in rl:
+                        from_stdout = stdout.read(4096)
+                        if from_stdout is not None:
+                            stdout_file.write(from_stdout)
+                    if stderr in rl:
+                        from_stderr = stderr.read(4096)
+                        if from_stderr is not None:
+                            stderr_file.write(from_stderr)
 
             logger.debug("command executed, fetching last of stdout/stderr...")
 
