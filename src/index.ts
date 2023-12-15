@@ -147,9 +147,20 @@ async function main() {
   }
 
   let updaterRaw: CancelablePromise<void> | undefined = undefined;
-  await new Promise<void>((resolve) => {
-    updaterRaw = handleUpdates(resolve);
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      updaterRaw = handleUpdates(resolve, () => reject(new Error('canceled')));
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === 'canceled') {
+      console.log(
+        `${colorNow()} ${chalk.whiteBright('updater requested no-serve; aborting serve')}`
+      );
+      return;
+    }
+    throw e;
+  }
+
   if (updaterRaw === undefined) {
     throw new Error('implementation error');
   }

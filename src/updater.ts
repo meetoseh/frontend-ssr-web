@@ -14,7 +14,10 @@ import { sendMessageTo, sendMessageToCancelable } from './slack';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
 import os from 'os';
 
-export function handleUpdates(onReady: () => void): CancelablePromise<void> {
+export function handleUpdates(
+  onReady: () => void,
+  onRestartingBeforeReady: () => void
+): CancelablePromise<void> {
   let done = false;
   let cancel: (() => void) | null = () => {
     done = true;
@@ -40,6 +43,7 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
     };
 
     createLockFileSync();
+    let needCleanupLockFile = true;
 
     try {
       const canceled = createCancelablePromiseFromCallbacks(cancelers);
@@ -141,8 +145,9 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
             return;
           }
 
-          await doUpdate();
           doneTentatively = true;
+          onRestartingBeforeReady();
+          await doUpdate();
           return;
         }
       }
@@ -183,7 +188,10 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
         }
       }
     } finally {
-      fs.unlinkSync('updater.lock');
+      if (needCleanupLockFile) {
+        needCleanupLockFile = false;
+        fs.unlinkSync('updater.lock');
+      }
       done = true;
       reject(new Error('canceled'));
     }
@@ -306,6 +314,11 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
     }
 
     async function doUpdate() {
+      if (needCleanupLockFile) {
+        needCleanupLockFile = false;
+        fs.unlinkSync('updater.lock');
+      }
+
       if (process.platform === 'win32') {
         console.warn(
           `${colorNow()} ${chalk.redBright(
