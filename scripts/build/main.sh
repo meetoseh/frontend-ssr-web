@@ -1,3 +1,4 @@
+echo Starting build.. 1>&2
 echo Waiting for boot finished..
 bash wait_boot_finished.sh
 echo Cloning repo..
