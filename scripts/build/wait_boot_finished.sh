@@ -7,7 +7,10 @@ wait_internet() {
 
 install_basic_dependencies() {
     yum update -y
-    yum install -y git jq screen wget
+    echo 'Installing jq/screen/wget...'
+    yum install -y jq screen wget
+    echo 'Installing git...'
+    yum install -y git
 }
 
 verify_iam_profile() {
