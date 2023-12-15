@@ -756,6 +756,20 @@ function checkIfRebuildRequired(): CancelablePromise<boolean> {
         });
       });
 
+      try {
+        await Promise.race([canceled.promise, client.connect()]);
+      } catch (e) {
+        if (state.finishing) {
+          state.done = true;
+          reject(new Error('canceled'));
+          return;
+        } else {
+          state.done = true;
+          reject(e);
+          return;
+        }
+      }
+
       const commandPromise = client.set('builds:frontend-ssr-web:hash', currentGitHash, {
         GET: true,
       });
