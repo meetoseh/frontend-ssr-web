@@ -1,7 +1,11 @@
 import path from 'path'
 import nodeExternals from 'webpack-node-externals'
+import process from 'process'
+
+const isDev = process.env.ENVIRONMENT === 'dev';
 
 export default {
+  mode: isDev ? 'development' : 'production',
   target: 'node',
   externalsPresets: { node: true },
   externals: [nodeExternals({
@@ -15,6 +19,7 @@ export default {
     chunkLoading: 'import',
     module: true,
   },
+  devtool: 'source-map',
   experiments: {
     outputModule: true,
   },

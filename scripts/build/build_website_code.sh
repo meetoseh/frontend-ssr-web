@@ -35,7 +35,7 @@ update_website_code() {
     rm -rf build
     rm -rf tmp
     npm ci
-    npx webpack --config webpack.config.js --mode production
+    npx webpack --config webpack.config.js
     npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve --build-parallelism 8
 }
 

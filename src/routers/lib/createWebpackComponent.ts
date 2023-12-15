@@ -199,6 +199,7 @@ export default {
     chunkFilename: '[name].[contenthash].js',
     assetModuleFilename: '[name].[contenthash][ext]',
   },
+  devtool: 'source-map',
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
   },
