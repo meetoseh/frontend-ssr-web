@@ -5,7 +5,6 @@ from typing import Tuple
 import paramiko
 from deployment.temp_files import temp_dir
 from loguru import logger
-import select
 
 
 def exec_simple(
@@ -42,39 +41,65 @@ def exec_simple(
             chan = transport.open_session(timeout=timeout)
             chan.settimeout(cmd_timeout)
             chan.exec_command(command)
-            logger.debug("command written to channel, connecting to stdio...")
-            stdout = chan.makefile("r", 8192)
-            stderr = chan.makefile_stderr("r", 8192)
-            logger.debug("stdio connected, starting stdio loop...")
+            logger.debug("starting stdio loop...")
 
             started_at = time.time()
             last_printed_at = started_at
+
+            stdout_closed = False
+            stderr_closed = False
+            made_progress_last_time = False
 
             while not chan.exit_status_ready():
                 if time.time() - last_printed_at > 10:
                     logger.debug("command is still running...")
                     last_printed_at = time.time()
 
-                time.sleep(0.1)
+                if not made_progress_last_time:
+                    time.sleep(0.1)
 
-                rl, wl, xl = select.select([stdout, stderr], [], [], 0.0)
-                if len(rl) > 0:
-                    if stdout in rl:
-                        from_stdout = stdout.read(4096)
-                        if from_stdout is not None:
-                            stdout_file.write(from_stdout)
-                    if stderr in rl:
-                        from_stderr = stderr.read(4096)
-                        if from_stderr is not None:
-                            stderr_file.write(from_stderr)
+                made_progress_last_time = False
+                if not stdout_closed and chan.recv_ready():
+                    made_progress_last_time = True
+                    from_stdout = chan.recv(4096)
+                    if from_stdout:
+                        stdout_file.write(from_stdout)
+                    else:
+                        logger.debug("stdout closed")
+                        stdout_closed = True
+
+                if not stderr_closed and chan.recv_stderr_ready():
+                    made_progress_last_time = True
+                    from_stderr = chan.recv_stderr(4096)
+                    if from_stderr:
+                        stderr_file.write(from_stderr)
+                    else:
+                        logger.debug("stderr closed")
+                        stderr_closed = True
 
             logger.debug("command executed, fetching last of stdout/stderr...")
+            while not stdout_closed or not stderr_closed:
+                if not made_progress_last_time:
+                    time.sleep(0.1)
 
-            while from_stdout := stdout.read(4096):
-                stdout_file.write(from_stdout)
+                made_progress_last_time = False
+                if not stdout_closed and chan.recv_ready():
+                    made_progress_last_time = True
+                    from_stdout = chan.recv(4096)
+                    if from_stdout:
+                        stdout_file.write(from_stdout)
+                    else:
+                        logger.debug("stdout closed")
+                        stdout_closed = True
 
-            while from_stderr := stderr.read(4096):
-                stderr_file.write(from_stderr)
+                if not stderr_closed and chan.recv_stderr_ready():
+                    made_progress_last_time = True
+                    from_stderr = chan.recv_stderr(4096)
+                    if from_stderr:
+                        stderr_file.write(from_stderr)
+                    else:
+                        logger.debug("stderr closed")
+                        stderr_closed = True
 
         logger.debug("command finished, reading logs...")
 
