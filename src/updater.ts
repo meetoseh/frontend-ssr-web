@@ -111,7 +111,9 @@ export function handleUpdates(onReady: () => void): CancelablePromise<void> {
           const rebuild = handleRebuild();
           cancelers.add(rebuild.cancel);
           try {
-            await Promise.race([canceled.promise, rebuild.promise]);
+            // we will allow the rebuilder time to cleanup before closing to ensure
+            // ec2 instances are not left running
+            await rebuild.promise;
           } finally {
             cancelers.remove(rebuild.cancel);
           }

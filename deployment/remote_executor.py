@@ -3,6 +3,7 @@ import os
 import time
 from typing import Tuple
 import paramiko
+from deployment.temp_files import temp_dir
 
 
 def exec_simple(
@@ -15,36 +16,55 @@ def exec_simple(
     if transport is None:
         raise ValueError("Client is not connected")
 
-    chan = transport.open_session(timeout=timeout)
-    chan.settimeout(cmd_timeout)
-    chan.exec_command(command)
-    stdout = chan.makefile("r", 8192)
-    stderr = chan.makefile_stderr("r", 8192)
+    with temp_dir() as logdir:
+        command_path = os.path.join(logdir, "command.txt")
+        stdout_path = os.path.join(logdir, "stdout.txt")
+        stderr_path = os.path.join(logdir, "stderr.txt")
 
-    all_stdout = io.BytesIO()
-    all_stderr = io.BytesIO()
+        print(
+            f"executing command on remote; writing logs to {logdir} "
+            " (cleaned up after)"
+        )
 
-    while not chan.exit_status_ready():
-        time.sleep(0.1)
+        with open(command_path, "w") as command_file:
+            command_file.write(command)
 
-        from_stdout = stdout.read(4096)
-        from_stderr = stderr.read(4096)
+        with open(stdout_path, "wb") as stdout_file, open(
+            stderr_path, "wb"
+        ) as stderr_file:
+            chan = transport.open_session(timeout=timeout)
+            chan.settimeout(cmd_timeout)
+            chan.exec_command(command)
+            stdout = chan.makefile("r", 8192)
+            stderr = chan.makefile_stderr("r", 8192)
 
-        if from_stdout is not None:
-            all_stdout.write(from_stdout)
+            while not chan.exit_status_ready():
+                time.sleep(0.1)
 
-        if from_stderr is not None:
-            all_stderr.write(from_stderr)
+                from_stdout = stdout.read(4096)
+                from_stderr = stderr.read(4096)
 
-    while from_stdout := stdout.read(4096):
-        all_stdout.write(from_stdout)
+                if from_stdout is not None:
+                    stdout_file.write(from_stdout)
 
-    while from_stderr := stderr.read(4096):
-        all_stderr.write(from_stderr)
+                if from_stderr is not None:
+                    stderr_file.write(from_stderr)
 
-    return all_stdout.getvalue().decode(
-        "utf-8", errors="replace"
-    ), all_stderr.getvalue().decode("utf-8", errors="replace")
+            while from_stdout := stdout.read(4096):
+                stdout_file.write(from_stdout)
+
+            while from_stderr := stderr.read(4096):
+                stderr_file.write(from_stderr)
+
+        with open(stdout_path, "rb") as stdout_file:
+            all_stdout = stdout_file.read()
+
+        with open(stderr_path, "rb") as stderr_file:
+            all_stderr = stderr_file.read()
+
+        return all_stdout.decode("utf-8", errors="replace"), all_stderr.decode(
+            "utf-8", errors="replace"
+        )
 
 
 def write_echo_commands_for_folder(
