@@ -4,6 +4,7 @@ import time
 from typing import Tuple
 import paramiko
 from deployment.temp_files import temp_dir
+from loguru import logger
 
 
 def exec_simple(
@@ -12,22 +13,27 @@ def exec_simple(
     """Executes the given command on the paramiko client, waiting for
     the command to finish before returning the stdout and stderr
     """
+    logger.debug("Acquiring client transport...")
     transport = client.get_transport()
     if transport is None:
         raise ValueError("Client is not connected")
+
+    logger.debug("Preparing command")
 
     with temp_dir() as logdir:
         command_path = os.path.join(logdir, "command.txt")
         stdout_path = os.path.join(logdir, "stdout.txt")
         stderr_path = os.path.join(logdir, "stderr.txt")
 
-        print(
+        logger.debug(
             f"executing command on remote; writing logs to {logdir} "
             " (cleaned up after)"
         )
 
         with open(command_path, "w") as command_file:
-            command_file.write(command)
+            command_file.write(command + "\n")
+
+        logger.debug("wrote command locally, writing to channel...")
 
         with open(stdout_path, "wb") as stdout_file, open(
             stderr_path, "wb"
@@ -35,10 +41,18 @@ def exec_simple(
             chan = transport.open_session(timeout=timeout)
             chan.settimeout(cmd_timeout)
             chan.exec_command(command)
+            logger.debug("command written to channel, waiting for exit status...")
             stdout = chan.makefile("r", 8192)
             stderr = chan.makefile_stderr("r", 8192)
 
+            started_at = time.time()
+            last_printed_at = started_at
+
             while not chan.exit_status_ready():
+                if time.time() - last_printed_at > 10:
+                    logger.debug("command is still running...")
+                    last_printed_at = time.time()
+
                 time.sleep(0.1)
 
                 from_stdout = stdout.read(4096)
@@ -50,17 +64,23 @@ def exec_simple(
                 if from_stderr is not None:
                     stderr_file.write(from_stderr)
 
+            logger.debug("command executed, fetching last of stdout/stderr...")
+
             while from_stdout := stdout.read(4096):
                 stdout_file.write(from_stdout)
 
             while from_stderr := stderr.read(4096):
                 stderr_file.write(from_stderr)
 
+        logger.debug("command finished, reading logs...")
+
         with open(stdout_path, "rb") as stdout_file:
             all_stdout = stdout_file.read()
 
         with open(stderr_path, "rb") as stderr_file:
             all_stderr = stderr_file.read()
+
+        logger.debug("logs read, returning...")
 
         return all_stdout.decode("utf-8", errors="replace"), all_stderr.decode(
             "utf-8", errors="replace"
