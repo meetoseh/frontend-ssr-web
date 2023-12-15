@@ -1,5 +1,6 @@
 import { CancelablePromise } from './lib/CancelablePromise';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
+import { createCancelableTimeout } from './lib/createCancelableTimeout';
 
 export type SendMessageOptions = {
   /** the text for the notification, defaults to the message */
@@ -81,33 +82,19 @@ export const sendBlocksCancelable = (
  * @returns a promise that resolves when the message is sent, ignoring the returned status code
  */
 export const sendBlocks = async (url: string, blocks: object[], preview: string): Promise<void> => {
-  let timeoutResolved = false;
-  let resolveTimeout = () => {
-    timeoutResolved = true;
-  };
-  const timeout = new Promise<void>((resolve) => {
-    resolveTimeout = resolve;
-
-    if (timeoutResolved) {
-      resolve();
-      return;
-    }
-
-    setTimeout(resolve, 20000);
-  });
-
+  const timeout = createCancelableTimeout(20000);
   const send = sendBlocksCancelable(url, blocks, preview);
   try {
-    await Promise.race([send, timeout]);
+    await Promise.race([send.promise, timeout.promise]);
     if (!send.done()) {
       send.cancel();
       throw new Error('timeout');
     } else {
-      resolveTimeout();
+      timeout.cancel();
     }
   } catch (e) {
     send.cancel();
-    resolveTimeout();
+    timeout.cancel();
     throw e;
   }
 };

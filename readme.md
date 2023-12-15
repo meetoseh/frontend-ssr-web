@@ -20,12 +20,16 @@ npm install
 Update the following command with your internal host:
 
 ```sh
-npx ts-node --experimental-specifier-resolution=node --esm src/index.ts --host 192.168.1.23 --port 3002 --ssl-certfile oseh-dev.com.pem --ssl-keyfile oseh-dev.com-key.pem
+npx webpack --config webpack.config.js
+node --enable-source-maps build/server/server.bundle.js --host 192.168.1.23 --port 3002 --ssl-certfile oseh-dev.com.pem --ssl-keyfile oseh-dev.com-key.pem
 ```
 
 Typically, requests would then be served at
 [oseh-dev.com:3002](https://oseh-dev.com:3002), assuming you are injecting the
-appropriate self-signed certificates and DNS remapping.
+appropriate self-signed certificates and DNS remapping. You will usually prefer
+to connect at [oseh-dev.com:3001](https://oseh-dev.com:3001) so that assets loaded
+from frontend-web are also served, using the dev proxy from frontend-web to handle
+serving both from the same port
 
 ## License
 

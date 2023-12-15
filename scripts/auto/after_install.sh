@@ -64,7 +64,7 @@ download_build() {
 rebuild() {
     source /home/ec2-user/config.sh
     npx webpack --config webpack.config.js --color 2>&1 | tee /home/ec2-user/webpack-server.log
-    npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve --color 2>&1 | tee /home/ec2-user/build-server.log
+    node --enable-source-maps build/server/server.bundle.js --no-serve --color 2>&1 | tee /home/ec2-user/build-server.log
 }
 
 download_build_or_rebuild() {

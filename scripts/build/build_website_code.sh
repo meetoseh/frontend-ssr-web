@@ -36,7 +36,7 @@ update_website_code() {
     rm -rf tmp
     npm ci
     npx webpack --config webpack.config.js
-    npx ts-node --experimental-specifier-resolution=node --esm build/server/server.bundle.js --no-serve --build-parallelism 8
+    node --enable-source-maps build/server/server.bundle.js --no-serve --build-parallelism 8
 }
 
 activate_node_installing_if_necessary

@@ -165,6 +165,7 @@ hydrateRoot(document, <App {...props} />);
           resolveJsonModule: true,
           isolatedModules: true,
           noEmit: false,
+          sourceMap: true,
           jsx: 'react-jsx',
           plugins: [{ name: 'typescript-plugin-css-modules' }],
         },
