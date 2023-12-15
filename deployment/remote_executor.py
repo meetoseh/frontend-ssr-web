@@ -87,7 +87,7 @@ def exec_simple(
             logger.debug("command executed, fetching last of stdout/stderr...")
             while not stdout_closed or not stderr_closed:
                 if not made_progress_last_time:
-                    time.sleep(0.1)
+                    break
 
                 made_progress_last_time = False
                 if not stdout_closed and chan.recv_ready():
