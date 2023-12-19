@@ -19,7 +19,7 @@ export type PlausibleEventPageViewArgs = {
    * 2. It allows us to use the URL for various technical purposes (e.g,
    *    shortlinks, state, etc.)
    */
-  componentPath: string;
+  componentPath: `/${string}`;
 
   /**
    * Additional properties to send with the event. Only strings, numbers,
