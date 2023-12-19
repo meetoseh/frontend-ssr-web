@@ -62,7 +62,7 @@ const plausibleDomain = (() => {
   }
   const url = new URL(rootFrontendURL);
   url.port = '443';
-  return url.origin;
+  return url.hostname;
 })();
 
 let __componentPath: string | undefined = undefined;
@@ -145,7 +145,7 @@ export const sendPlausibleEvent = async (
       body: JSON.stringify({
         domain: plausibleDomain,
         name: args.name,
-        url: plausibleDomain + componentPath,
+        url: window.location.protocol + '//' + plausibleDomain + componentPath,
         ...(args.props === undefined ? {} : { props: args.props }),
       }),
       headers: {

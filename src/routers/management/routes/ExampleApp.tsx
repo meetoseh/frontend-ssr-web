@@ -20,6 +20,7 @@ export const ExampleApp = ({ initialTodos, stylesheets }: ExampleAppProps): Reac
   usePlausibleEvent('pageview--frontend-ssr-web/routers/management/routes/ExampleApp.tsx', {
     name: 'pageview',
     componentPath: '/frontend-ssr-web/routers/management/routes/ExampleApp.tsx',
+    props: { initialTodos: initialTodos.join(',') },
   });
 
   return (
