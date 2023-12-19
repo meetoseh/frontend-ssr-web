@@ -30,6 +30,8 @@ import {
 import { RouteWithPrefix, constructOpenapiSchemaRoute } from './routers/openapi/routes/schema';
 import { CommandLineArgs } from './CommandLineArgs';
 import { PendingRoute } from './routers/lib/route';
+import { inspect } from 'util';
+import { createCancelableTimeout } from './lib/createCancelableTimeout';
 
 /**
  * Prefix used on all routes
@@ -185,14 +187,106 @@ async function main() {
     });
   }
 
+  let shuttingDown = false;
+  const cancelers = new Callbacks<undefined>();
+  const pendingBeforeClose: Record<string, Promise<void>> = {};
+
   process.on('SIGINT', () => {
+    if (shuttingDown) {
+      console.log(`${colorNow()} ${chalk.whiteBright('SIGINT ignored, already shutting down')}`);
+      return;
+    }
+    shuttingDown = true;
     console.log(`${colorNow()} ${chalk.whiteBright('SIGINT received, shutting down...')}`);
     updater.cancel();
     requestHandler.cancel();
-    Promise.all([updater.promise, requestHandler.promise]).finally(() => {
-      console.log(`${colorNow()} ${chalk.whiteBright('shutdown complete')}`);
-      process.exit(0);
+    Promise.all([updater.promise, requestHandler.promise]).finally(async () => {
+      console.log(`${colorNow()} ${chalk.whiteBright('server and updater shutdown complete')}`);
+      console.log(`${colorNow()} ${chalk.gray('invoking shutdown cancelers...')}`);
+      cancelers.call(undefined);
+
+      const pending = Object.values(pendingBeforeClose);
+      if (pending.length > 0) {
+        console.log(`${colorNow()} ${chalk.white('waiting for pendingBeforeClose...')}`);
+        const timeout = createCancelableTimeout(2000);
+        timeout.promise.catch(() => {});
+        pending.forEach((p) => {
+          p.catch((e) => {
+            console.log(
+              `${colorNow()} ${chalk.redBright('pendingBeforeClose error')}\n${chalk.gray(
+                inspect(e)
+              )}`
+            );
+          });
+        });
+        try {
+          await Promise.race([timeout.promise, Promise.allSettled(pending)]);
+          if (!timeout.done()) {
+            // check for errors
+            await Promise.race([timeout.promise, Promise.all(pending)]);
+          }
+        } catch (e) {
+          console.log(
+            `${colorNow()} ${chalk.redBright('shutdown pendingBeforeClose error')}\n${chalk.gray(
+              inspect(e)
+            )}`
+          );
+        } finally {
+          if (timeout.done()) {
+            console.log(`${colorNow()} ${chalk.redBright('shutdown pendingBeforeClose timeout')}`);
+          } else {
+            console.log(`${colorNow()} ${chalk.whiteBright('shutdown complete')}`);
+          }
+          process.exit(0);
+        }
+      } else {
+        console.log(
+          `${colorNow()} ${chalk.whiteBright('shutdown complete (no pendingBeforeClose)')}`
+        );
+        process.exit(0);
+      }
     });
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    if (shuttingDown) {
+      return;
+    }
+
+    console.log(
+      `${colorNow()} ${chalk.redBright('Unhandled Rejection at: Promise')} ${chalk.whiteBright(
+        inspect(promise)
+      )}\n${chalk.gray(inspect(reason))}`
+    );
+
+    const myId = 'k' + Math.random().toString(36).slice(2);
+    const canceled = createCancelablePromiseFromCallbacks(cancelers);
+    canceled.promise.catch(() => {});
+
+    if (shuttingDown) {
+      canceled.cancel();
+      return;
+    }
+    pendingBeforeClose[myId] = (async () => {
+      const slackMessage = slack.sendMessageToCancelable(
+        'web-errors',
+        `${os.hostname()} unhandled promise in frontend-ssr-web\n\`\`\`\n${inspect(reason)}\n\`\`\``
+      );
+
+      try {
+        await Promise.race([canceled.promise, slackMessage.promise]);
+      } catch (e) {
+        console.log(
+          `${colorNow()} ${chalk.redBright('error reporting unhandledRejection')}\n${chalk.gray(
+            inspect(e)
+          )}`
+        );
+      } finally {
+        delete pendingBeforeClose[myId];
+        canceled.cancel();
+        slackMessage.cancel();
+      }
+    })();
   });
 
   if (process.env['ENVIRONMENT'] !== 'dev') {
