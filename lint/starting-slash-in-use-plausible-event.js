@@ -11,9 +11,6 @@ export default {
     schema: [],
   },
   create: (context) => {
-    const services = context.parserServices;
-    const checker = services.program.getTypeChecker();
-
     return {
       CallExpression: (node) => {
         if (node.callee.type !== 'Identifier') return;
