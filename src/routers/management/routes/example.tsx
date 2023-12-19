@@ -1,6 +1,7 @@
 import { ExampleApp, ExampleAppProps } from './ExampleApp';
 import { createComponentRoutes } from '../../lib/createComponentRoutes';
 import { CommandLineArgs } from '../../../CommandLineArgs';
+import { hashElementForSitemap } from '../../sitemap/lib/hashElementForSitemap';
 
 // add more to this array to test parallel builds performance
 export default [1].map(
@@ -32,5 +33,17 @@ export default [1].map(
         operationId: `management_example${i}`,
       },
       args,
+      getSitemapEntries: (routerPrefix) => ({
+        done: () => true,
+        cancel: () => {},
+        promise: Promise.resolve([
+          {
+            path: (routerPrefix + '/example1') as `/${string}`,
+            significantContentSHA512: hashElementForSitemap(
+              <ExampleApp initialTodos={[]} stylesheets={[]} />
+            ),
+          },
+        ]),
+      }),
     })
 );

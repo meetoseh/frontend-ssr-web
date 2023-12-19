@@ -32,11 +32,12 @@ import { CommandLineArgs } from './CommandLineArgs';
 import { PendingRoute } from './routers/lib/route';
 import { inspect } from 'util';
 import { createCancelableTimeout } from './lib/createCancelableTimeout';
+import { constructSitemapRoute } from './routers/sitemap/routes/sitemap';
 
 /**
  * Prefix used on all routes
  */
-const globalPrefix = '/shared';
+const globalPrefix = '/shared' as const;
 
 async function main() {
   const program = new Command();
@@ -499,10 +500,13 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
       }
     }
   }
-  const openapiRoute = constructOpenapiSchemaRoute(opts, () =>
-    flattenRoutes({ ...opts, artifacts: 'reuse', serve: false, docsOnly: true })
-  );
+  const getFlatRoutes = () =>
+    flattenRoutes({ ...opts, artifacts: 'reuse', serve: false, docsOnly: true });
+
+  const openapiRoute = constructOpenapiSchemaRoute(getFlatRoutes);
   await realizeRouteAndAddToRootRouter([globalPrefix], openapiRoute);
+  const sitemapRoute = constructSitemapRoute(getFlatRoutes);
+  await realizeRouteAndAddToRootRouter([], sitemapRoute);
 
   while (pending.length > 0 || pendingLocked) {
     if (pendingLocked) {
@@ -521,7 +525,7 @@ async function flattenRoutes(opts: CommandLineArgs): Promise<RouteWithPrefix[]> 
     for (const route of routes) {
       const realRoutes = typeof route === 'function' ? await route(opts) : [route];
       for (const realRoute of realRoutes) {
-        result.push({ prefix: globalPrefix + prefix, route: realRoute });
+        result.push({ prefix: (globalPrefix + prefix) as `/${string}`, route: realRoute });
       }
     }
   }

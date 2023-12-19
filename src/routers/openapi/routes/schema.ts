@@ -19,7 +19,6 @@ import { AcceptMediaRangeWithoutWeight, parseAccept, selectAccept } from '../../
 import { BAD_REQUEST_MESSAGE } from '../../lib/errors';
 import { finishWithBadRequest } from '../../lib/finishWithBadRequest';
 import { finishWithNotAcceptable } from '../../lib/finishWithNotAcceptable';
-import { CommandLineArgs } from '../../../CommandLineArgs';
 
 const acceptable: AcceptMediaRangeWithoutWeight[] = [
   { type: 'application', subtype: 'json', parameters: { charset: 'utf-8' } },
@@ -47,13 +46,12 @@ const acceptable: AcceptMediaRangeWithoutWeight[] = [
  * regenerated, such as by restarting the server.
  */
 export const constructOpenapiSchemaRoute = (
-  args: CommandLineArgs,
   getFlatRoutes: () => Promise<RouteWithPrefix[]>
 ): PendingRoute => {
   return {
     methods: ['GET'],
     path: '/openapi.json',
-    handler: async () => {
+    handler: async (args) => {
       if (args.artifacts === 'rebuild') {
         const flatRoutes = await getFlatRoutes();
         await regenerateSchema(flatRoutes, {
@@ -132,7 +130,7 @@ const deleteSchemaSync = () => {
   }
 };
 
-export type RouteWithPrefix = { prefix: string; route: Pick<Route, 'docs'> };
+export type RouteWithPrefix = { prefix: '' | `/${string}`; route: Pick<Route, 'docs'> };
 
 const combineRoutesToSchema = (routes: RouteWithPrefix[], info: OASInfo): OpenAPI => {
   const paths: OASPaths = {};

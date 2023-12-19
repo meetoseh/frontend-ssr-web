@@ -2,6 +2,11 @@ import * as http from 'http';
 import { CancelablePromise } from '../../lib/CancelablePromise';
 import { OASPathItem } from './openapi';
 import { CommandLineArgs } from '../../CommandLineArgs';
+import { SitemapEntry } from '../sitemap/lib/Sitemap';
+
+export type RouteDocsGetSitemapEntries = (
+  routerPrefix: `/${string}` | ''
+) => CancelablePromise<SitemapEntry[]>;
 
 /**
  * Describes a route that can be included within a router.
@@ -81,6 +86,19 @@ export type Route = {
      * See `pathItem` for how conflicts are resolved
      */
     templatedRelativePath: string;
+    /**
+     * A function which can be used to generate the sitemap entries for this
+     * route. All valid variants of templated values should be included, if
+     * they should be included in the sitemap. For example, if this is the
+     * documentation for a route which displays a journey based on its slug,
+     * the returned entries should include all the valid slugs from the database.
+     *
+     * This function should not do any caching; caching will be handled at a
+     * higher level. This may assume that it's done in the background and thus
+     * is not limited by the request timeout (i.e., the caller has to deal with
+     * that issue)
+     */
+    getSitemapEntries: RouteDocsGetSitemapEntries;
     /**
      * The OAS Path Item object that describes the path. There may already be a
      * path item object for this path, in which case there must not be any

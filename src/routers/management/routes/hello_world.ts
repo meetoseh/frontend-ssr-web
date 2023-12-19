@@ -77,6 +77,11 @@ const helloWorldRoute: PendingRoute = {
   docs: [
     {
       templatedRelativePath: '/hello_world',
+      getSitemapEntries: () => ({
+        done: () => true,
+        cancel: () => {},
+        promise: Promise.resolve([]),
+      }),
       pathItem: {
         get: {
           tags: ['example'],

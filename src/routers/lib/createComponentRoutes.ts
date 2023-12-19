@@ -1,6 +1,6 @@
 import { ReactElement } from 'react';
 import { RouteBodyArgs } from './RouteBodyArgs';
-import { PendingRoute, Route } from './route';
+import { PendingRoute, Route, RouteDocsGetSitemapEntries } from './route';
 import { createWebpackComponent } from './createWebpackComponent';
 import { componentRouteHandler } from './componentRouteHandler';
 import path from 'path';
@@ -143,6 +143,12 @@ export type CreateComponentRoutesArgs<T extends object> = (
    * The documentation for the route serving the component.
    */
   docs: Omit<OASPathItem, 'responses'>;
+
+  /**
+   * Generates the sitemap entries for the primary route.
+   * @see Route for details
+   */
+  getSitemapEntries: RouteDocsGetSitemapEntries;
 };
 
 const normalizePath = (p: string): string => {
@@ -169,6 +175,7 @@ export const createComponentRoutes = async <T extends object>({
   body,
   docs,
   args,
+  getSitemapEntries,
   ...rest
 }: CreateComponentRoutesArgs<T>): Promise<PendingRoute[]> => {
   const realAssetsPath = assetsPath ?? `${routePath}-assets`;
@@ -298,6 +305,7 @@ export const createComponentRoutes = async <T extends object>({
         {
           templatedRelativePath:
             typeof routePath === 'string' ? routePath : (rest as any).templatedRelativePath,
+          getSitemapEntries,
           pathItem: {
             get: {
               ...docs,
