@@ -178,10 +178,15 @@ hydrateRoot(document, <App {...props} />);
     );
     // webpack config
     const webpackMode = process.env.ENVIRONMENT === 'dev' ? 'development' : 'production';
+    const compileTimeDefines = {
+      'process.env.CLIENT_VISIBLE_ENVIRONMENT': JSON.stringify(process.env.ENVIRONMENT),
+      'process.env.CLIENT_VISIBLE_ROOT_FRONTEND_URL': JSON.stringify(process.env.ROOT_FRONTEND_URL),
+    };
     await fs.promises.writeFile(
       webpackConfigFile,
       `// AUTO GENERATED
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import webpack from 'webpack'
 
 const entrypoint = ${JSON.stringify(entrypoint)};
 const bundleDirectory = ${JSON.stringify(bundleDirectory)};
@@ -236,16 +241,19 @@ export default {
     new MiniCssExtractPlugin({
       filename: '[name].[contenthash].css',
     }),
+    new webpack.DefinePlugin(${JSON.stringify(compileTimeDefines)}),
   ],
 };
 `
     );
     // run webpack in a separate process so we get cpu parallelism
+    // we do not forward environment variables to avoid accidentally
+    // leaking secrets. Instead, all defines must be explicitly defined
+    // above
     await new Promise<void>((resolve, reject) => {
       const child = spawn(`npx webpack --config ${webpackConfigFile} --color`, {
         shell: true,
         detached: false,
-        env: process.env,
         stdio: 'pipe',
       });
       child.on('exit', (code) => {

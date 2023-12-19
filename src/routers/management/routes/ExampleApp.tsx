@@ -3,6 +3,8 @@ import { useWritableValueWithCallbacks } from '../../../lib/Callbacks';
 import { setVWC } from '../../../uikit/lib/setVWC';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import styles from './ExampleApp.module.css';
+import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
+import { sendPlausibleEvent } from '../../../uikit/lib/sendPlausibleEvent';
 
 export type ExampleAppProps = {
   initialTodos: string[];
@@ -15,6 +17,12 @@ export type ExampleAppProps = {
  * to be careful about the imports on this file
  */
 export const ExampleApp = ({ initialTodos, stylesheets }: ExampleAppProps): ReactElement => {
+  usePlausibleEvent('pageview--frontend-ssr-web/routers/management/routes/ExampleApp.tsx', {
+    name: 'pageview',
+    componentPath: 'frontend-ssr-web/routers/management/routes/ExampleApp.tsx',
+    props: { initialTodos: initialTodos.join(',') },
+  });
+
   return (
     <html>
       <head>
@@ -61,6 +69,10 @@ const TodoList = ({ initial }: { initial: string[] }): ReactElement => {
       if (value.length < 1) {
         return;
       }
+
+      sendPlausibleEvent(undefined, {
+        name: 'frontend-ssr-web/example/TodoList--add',
+      });
 
       setVWC(todosVWC, [...todosVWC.get(), value]);
       input.value = '';
