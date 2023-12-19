@@ -428,8 +428,8 @@ const s = {
     build: () => ({
       type: 'object',
       required: Object.entries(fields)
-        .filter(([k, f]) => f.required)
-        .map(([k, v]) => k),
+        .filter(([_ , f]) => f.required)
+        .map(([k, _]) => k),
       properties: (() => {
         const result: Record<string, OASSchema> = {};
         for (const [k, f] of Object.entries(fields)) {

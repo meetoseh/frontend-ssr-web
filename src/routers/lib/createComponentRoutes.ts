@@ -267,7 +267,7 @@ export const createComponentRoutes = async <T extends object>({
     {
       methods: ['GET'],
       path: () => routePath,
-      handler: async (args: CommandLineArgs) => {
+      handler: async (_: CommandLineArgs) => {
         if (outerBundleArgs === undefined) {
           outerBundleArgs = await initBundleArgs();
         }

@@ -23,7 +23,7 @@ test('root level simple route', () => {
 
 test('root level templated route', () => {
   const router = createEmptyRootRouter('');
-  const [path, extracted] = templatedPath(['/', 'uid', '/']);
+  const path = templatedPath(['/', 'uid', '/'])[0];
   addRouteToRootRouter(router, [], {
     methods: ['GET'],
     path,
@@ -59,7 +59,7 @@ test('direct child simple route', () => {
 
 test('direct child templated route', () => {
   const router = createEmptyRootRouter('');
-  const [path, extracted] = templatedPath(['/', 'uid', '/']);
+  const path = templatedPath(['/', 'uid', '/'])[0];
   addRouteToRootRouter(router, ['/foo'], {
     methods: ['GET'],
     path,
@@ -94,7 +94,7 @@ test('indirect child simple route', () => {
 
 test('indirect child templated route', () => {
   const router = createEmptyRootRouter('');
-  const [path, extracted] = templatedPath(['/', 'uid', '/']);
+  const path = templatedPath(['/', 'uid', '/'])[0];
   addRouteToRootRouter(router, ['/foo', '/bar'], {
     methods: ['GET'],
     path,

@@ -10,7 +10,7 @@ import redis from 'redis';
 import { spawn } from 'child_process';
 import * as crypto from 'crypto';
 import { inspect } from 'util';
-import { sendMessageTo, sendMessageToCancelable } from './slack';
+import { sendMessageToCancelable } from './slack';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
 import os from 'os';
 
@@ -401,7 +401,7 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
     cancelers.add(masterCancelable.cancel);
 
     try {
-      await Promise.race([canceled.promise, masterCancelable]);
+      await Promise.race([canceled.promise, masterCancelable.promise]);
     } catch (e) {}
 
     if (doneTentatively) {
@@ -444,7 +444,6 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
       keys: ['updates:frontend-ssr-web:lock'],
       arguments: [ourIdentifier],
     });
-
     try {
       await Promise.race([canceled.promise, commandPromise]);
     } catch (e) {
@@ -529,7 +528,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
     cancelers.add(masterCancelable.cancel);
 
     try {
-      await Promise.race([canceled.promise, masterCancelable]);
+      await Promise.race([canceled.promise, masterCancelable.promise]);
     } catch (e) {}
 
     if (doneTentatively) {

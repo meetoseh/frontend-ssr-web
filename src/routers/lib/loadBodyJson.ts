@@ -1,4 +1,4 @@
-import { Duplex, Readable, Writable } from 'stream';
+import { Readable, Writable } from 'stream';
 import { RouteBodyArgs } from './RouteBodyArgs';
 import {
   BAD_REQUEST_MESSAGE,

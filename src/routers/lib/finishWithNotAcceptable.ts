@@ -1,6 +1,6 @@
 import { Readable } from 'stream';
 import { RouteBodyArgs } from './RouteBodyArgs';
-import { acceptableEncodingsHeader, finishWithEncodedServerResponse } from './acceptEncoding';
+import { finishWithEncodedServerResponse } from './acceptEncoding';
 import { AcceptMediaRangeWithoutWeight } from './accept';
 import { STANDARD_VARY_RESPONSE } from './constants';
 

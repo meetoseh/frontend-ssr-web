@@ -1,5 +1,3 @@
-import { IncomingMessage } from 'http';
-
 const regexCharactersRequiringEscape = new Set('.^$*+-?()[]{}\\|');
 
 /**

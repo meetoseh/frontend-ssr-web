@@ -1,5 +1,7 @@
 {
-    "editor.tabSize": 2,
-    "files.eol": "\n",
-    "python.analysis.typeCheckingMode": "basic"
+  "editor.tabSize": 2,
+  "files.eol": "\n",
+  "python.analysis.typeCheckingMode": "basic",
+  "eslint.run": "onSave",
+  "eslint.lintTask.enable": true
 }

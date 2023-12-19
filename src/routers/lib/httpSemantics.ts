@@ -156,10 +156,6 @@ const isValidQuotedPairSecondCodePoint = (codePoint: number): boolean => {
   );
 };
 
-const isQuotedPair = (firstCodePoint: number, secondCodePoint: number): boolean => {
-  return firstCodePoint === 92 && isValidQuotedPairSecondCodePoint(secondCodePoint);
-};
-
 const quotedStringEndScanner: PeekableScanner = (buf, isEof) => {
   let escaped = false;
   for (let i = 0; i < buf.length; i++) {
