@@ -505,8 +505,10 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
 
   const openapiRoute = constructOpenapiSchemaRoute(getFlatRoutes);
   await realizeRouteAndAddToRootRouter([globalPrefix], openapiRoute);
-  const sitemapRoute = constructSitemapRoute(getFlatRoutes);
-  await realizeRouteAndAddToRootRouter([], sitemapRoute);
+  const sitemapRoutes = constructSitemapRoute(getFlatRoutes);
+  for (const sitemapRoute of sitemapRoutes) {
+    await realizeRouteAndAddToRootRouter([], sitemapRoute);
+  }
 
   while (pending.length > 0 || pendingLocked) {
     if (pendingLocked) {

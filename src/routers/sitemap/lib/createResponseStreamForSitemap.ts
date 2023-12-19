@@ -5,16 +5,24 @@ import { Sitemap } from './Sitemap';
  * Creates a response stream which renders the given sitemap in XML format
  * using the given character set.
  *
+ * @param rootFrontendUrl The root frontend url to use for the sitemap, e.g.,
+ *   https://oseh.io
  * @param sitemap The sitemap to render
+ * @param format The format for the sitemap; xml is standard, but text is
+ *   convenient for simpler parsing and faster generation
  * @param charset The character set to use. The result is currently always
  *   ascii, but this may change in the future.
  */
 export const createResponseStreamForSitemap = (
   rootFrontendUrl: string,
   sitemap: Sitemap,
+  format: 'xml' | 'plain',
   charset: 'utf-8' | 'ascii'
 ): Readable => {
-  const myGenerator = createGeneratorForSitemap(rootFrontendUrl, sitemap, charset);
+  const myGenerator =
+    format === 'xml'
+      ? createGeneratorForSitemapXML(rootFrontendUrl, sitemap, charset)
+      : createGeneratorForSitemapPlain(rootFrontendUrl, sitemap);
   const stream = new Readable({
     read: () => {
       const result = myGenerator.next();
@@ -28,17 +36,26 @@ export const createResponseStreamForSitemap = (
   return stream;
 };
 
-const createGeneratorForSitemap = function* (
+const createGeneratorForSitemapXML = function* (
   rootFrontendUrl: string,
   sitemap: Sitemap,
   charset: 'utf-8' | 'ascii'
 ) {
   yield `<?xml version="1.0" encoding="${charset.toLocaleUpperCase()}"?>\n`;
   yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+  // TODO -> need to make an rqdb adapter in order to get lastmod
+  // we're going to need this for all the routes anyway, so gotta make
+  // it good
   for (const entry of sitemap.entries) {
     yield '  <url>\n';
     yield `    <loc>${rootFrontendUrl}${entry.path}</loc>\n`;
     yield '  </url>\n';
   }
   yield '</urlset>\n';
+};
+
+const createGeneratorForSitemapPlain = function* (rootFrontendUrl: string, sitemap: Sitemap) {
+  for (const entry of sitemap.entries) {
+    yield `${rootFrontendUrl}${entry.path}\n`;
+  }
 };
