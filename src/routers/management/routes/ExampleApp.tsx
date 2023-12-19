@@ -19,7 +19,7 @@ export type ExampleAppProps = {
 export const ExampleApp = ({ initialTodos, stylesheets }: ExampleAppProps): ReactElement => {
   usePlausibleEvent('pageview--frontend-ssr-web/routers/management/routes/ExampleApp.tsx', {
     name: 'pageview',
-    componentPath: 'frontend-ssr-web/routers/management/routes/ExampleApp.tsx',
+    componentPath: '/frontend-ssr-web/routers/management/routes/ExampleApp.tsx',
     props: { initialTodos: initialTodos.join(',') },
   });
 
