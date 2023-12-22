@@ -12,7 +12,7 @@ import { finishWithPayloadTooLarge } from './finishWithPayloadTooLarge';
 import { finishWithServerError } from './finishWithServerError';
 import { parseContentLength } from './parseContentLength';
 import * as path from 'path';
-import * as crypto from 'crypto';
+import crypto from 'crypto';
 import * as fs from 'fs';
 import { Callbacks } from '../../lib/Callbacks';
 import { colorNow } from '../../logging';

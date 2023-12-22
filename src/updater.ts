@@ -8,7 +8,7 @@ import { colorNow } from './logging';
 import { HostAndPort, discoverMasterUsingSentinels, subscribeForOneMessage } from './redis';
 import redis from 'redis';
 import { spawn } from 'child_process';
-import * as crypto from 'crypto';
+import crypto from 'crypto';
 import { inspect } from 'util';
 import { sendMessageToCancelable } from './slack';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';

@@ -99,8 +99,6 @@ export const sendBlocks = async (url: string, blocks: object[], preview: string)
   }
 };
 
-// TODO: sendMessageCancelable
-
 /**
  * Sends the given markdown (default) or plaintext to the given slack url
  *

@@ -10,7 +10,7 @@ import {
   supportedEncodings,
 } from './acceptEncoding';
 import * as fs from 'fs';
-import * as crypto from 'crypto';
+import crypto from 'crypto';
 import { finishWithBadEncoding } from './finishWithBadEncoding';
 import { finishWithServiceUnavailable } from './finishWithServiceUnavailable';
 import { STANDARD_VARY_RESPONSE } from './constants';

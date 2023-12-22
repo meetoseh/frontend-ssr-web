@@ -1,5 +1,6 @@
 import { CommandLineArgs } from '../../../CommandLineArgs';
 import { CancelablePromise } from '../../../lib/CancelablePromise';
+import { withItgs } from '../../../lib/Itgs';
 import { AcceptMediaRangeWithoutWeight, parseAccept, selectAccept } from '../../lib/accept';
 import {
   finishWithEncodedServerResponse,
@@ -75,7 +76,7 @@ export const constructSitemapRoute = (
         return finishWithBadEncoding(args);
       }
 
-      let accept;
+      let accept: AcceptMediaRangeWithoutWeight | undefined;
       try {
         accept = selectAccept(parseAccept(args.req.headers['accept']), acceptable);
       } catch (e) {
@@ -113,19 +114,26 @@ export const constructSitemapRoute = (
       }
 
       const sitemap: Sitemap = { entries: sitemapEntries };
-      const responseStream = createResponseStreamForSitemap(
-        rootFrontendUrl,
-        sitemap,
-        format,
-        charset
-      );
+      const cleanAccept = accept;
+      await withItgs(async (itgs) => {
+        const responseStream = createResponseStreamForSitemap(
+          itgs,
+          rootFrontendUrl,
+          sitemap,
+          format,
+          charset
+        );
 
-      args.resp.statusCode = 200;
-      args.resp.statusMessage = 'OK';
-      args.resp.setHeader('Vary', STANDARD_VARY_RESPONSE);
-      args.resp.setHeader('Content-Encoding', coding);
-      args.resp.setHeader('Content-Type', `${accept.type}/${accept.subtype}; charset=${charset}`);
-      return finishWithEncodedServerResponse(args, coding, responseStream);
+        args.resp.statusCode = 200;
+        args.resp.statusMessage = 'OK';
+        args.resp.setHeader('Vary', STANDARD_VARY_RESPONSE);
+        args.resp.setHeader('Content-Encoding', coding);
+        args.resp.setHeader(
+          'Content-Type',
+          `${cleanAccept.type}/${cleanAccept.subtype}; charset=${charset}`
+        );
+        await finishWithEncodedServerResponse(args, coding, responseStream);
+      });
     });
   };
 
