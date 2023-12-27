@@ -232,15 +232,23 @@ export function handleUpdates(
           reconnectStrategy: false,
         },
       });
+      const clientErroredCallbacks = new Callbacks<any>();
+      const clientErrored = createCancelablePromiseFromCallbacks(clientErroredCallbacks);
+      client.on('error', (e) => {
+        clientErroredCallbacks.call(e);
+      });
 
       try {
         const messageCancelable = subscribeForOneMessage({
           client,
           channel: 'updates:frontend-ssr-web',
         });
-        await raceCancelable(canceled, messageCancelable);
+        await raceCancelable(canceled, messageCancelable, clientErrored);
         if (doneTentatively) {
           return;
+        }
+        if (clientErrored.done()) {
+          throw await clientErrored.promise;
         }
 
         const message = await messageCancelable.promise;
@@ -254,7 +262,10 @@ export function handleUpdates(
 
         try {
           const acquireLockCancelable = acquireUpdateLock();
-          await raceCancelable(canceled, acquireLockCancelable);
+          await raceCancelable(canceled, acquireLockCancelable, clientErrored);
+          if (clientErrored.done()) {
+            throw await clientErrored.promise;
+          }
           // we ignore doneTentatively at this point: we will proceed with the update regardless.
           // we race so that the acquire lock gets canceled if we have received sigint already
           await acquireLockCancelable.promise;
@@ -418,6 +429,11 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
         reconnectStrategy: false,
       },
     });
+    const clientErroredCallbacks = new Callbacks<any>();
+    const clientErrored = createCancelablePromiseFromCallbacks(clientErroredCallbacks);
+    client.on('error', (e) => {
+      clientErroredCallbacks.call(e);
+    });
 
     cancelers.add(() => {
       client.quit().catch(() => {
@@ -426,7 +442,10 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
     });
 
     try {
-      await Promise.race([canceled.promise, client.connect()]);
+      await Promise.race([canceled.promise, client.connect(), clientErrored.promise]);
+      if (clientErrored.done()) {
+        throw await clientErrored.promise;
+      }
     } catch (e) {
       if (!doneTentatively) {
         doneTentatively = true;
@@ -445,7 +464,10 @@ function releaseUpdateLockIfHeld(): CancelablePromise<void> {
       arguments: [ourIdentifier],
     });
     try {
-      await Promise.race([canceled.promise, commandPromise]);
+      await Promise.race([canceled.promise, commandPromise, clientErrored.promise]);
+      if (clientErrored.done()) {
+        throw await clientErrored.promise;
+      }
     } catch (e) {
       if (!doneTentatively) {
         doneTentatively = true;
@@ -545,6 +567,11 @@ function acquireUpdateLock(): CancelablePromise<void> {
         reconnectStrategy: false,
       },
     });
+    const clientErroredCallbacks = new Callbacks<any>();
+    const clientErrored = createCancelablePromiseFromCallbacks(clientErroredCallbacks);
+    client.on('error', (e) => {
+      clientErroredCallbacks.call(e);
+    });
 
     cancelers.add(() => {
       client.quit().catch(() => {
@@ -553,7 +580,10 @@ function acquireUpdateLock(): CancelablePromise<void> {
     });
 
     try {
-      await Promise.race([canceled.promise, client.connect()]);
+      await Promise.race([canceled.promise, client.connect(), clientErrored.promise]);
+      if (clientErrored.done()) {
+        throw await clientErrored.promise;
+      }
     } catch (e) {
       if (!doneTentatively) {
         doneTentatively = true;
@@ -587,7 +617,10 @@ function acquireUpdateLock(): CancelablePromise<void> {
       });
 
       try {
-        await Promise.race([canceled.promise, commandPromise]);
+        await Promise.race([canceled.promise, commandPromise, clientErrored.promise]);
+        if (clientErrored.done()) {
+          throw await clientErrored.promise;
+        }
       } catch (e) {
         if (!doneTentatively) {
           doneTentatively = true;
@@ -624,7 +657,10 @@ function acquireUpdateLock(): CancelablePromise<void> {
       const timeoutCancelable = createCancelableTimeout(1000);
       cancelers.add(timeoutCancelable.cancel);
       try {
-        await Promise.race([timeoutCancelable.promise, canceled.promise]);
+        await Promise.race([timeoutCancelable.promise, canceled.promise, clientErrored.promise]);
+        if (clientErrored.done()) {
+          throw await clientErrored.promise;
+        }
       } catch (e) {
         if (!doneTentatively) {
           doneTentatively = true;
@@ -763,6 +799,11 @@ function checkIfRebuildRequired(): CancelablePromise<boolean> {
           reconnectStrategy: false,
         },
       });
+      const clientErroredCallbacks = new Callbacks<any>();
+      const clientErrored = createCancelablePromiseFromCallbacks(clientErroredCallbacks);
+      client.on('error', (e) => {
+        clientErroredCallbacks.call(e);
+      });
 
       state.cancelers.add(() => {
         client.quit().catch(() => {
@@ -771,7 +812,10 @@ function checkIfRebuildRequired(): CancelablePromise<boolean> {
       });
 
       try {
-        await Promise.race([canceled.promise, client.connect()]);
+        await Promise.race([canceled.promise, client.connect(), clientErrored.promise]);
+        if (clientErrored.done()) {
+          throw await clientErrored.promise;
+        }
       } catch (e) {
         if (state.finishing) {
           state.done = true;
@@ -788,7 +832,10 @@ function checkIfRebuildRequired(): CancelablePromise<boolean> {
         GET: true,
       });
       try {
-        await Promise.race([canceled.promise, commandPromise]);
+        await Promise.race([canceled.promise, commandPromise, clientErrored.promise]);
+        if (clientErrored.done()) {
+          throw await clientErrored.promise;
+        }
       } catch (e) {
         if (state.finishing) {
           state.done = true;
