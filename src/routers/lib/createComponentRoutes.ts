@@ -11,6 +11,7 @@ import { OASPathItem } from './openapi';
 import { simpleRouteHandler } from './simpleRouteHandler';
 import { finishWithServerError } from './finishWithServerError';
 import { CommandLineArgs } from '../../CommandLineArgs';
+import { CancelablePromise } from '../../lib/CancelablePromise';
 
 type BundledAsset = {
   /** The name of the asset, e.g., `main.css` */
@@ -92,7 +93,7 @@ export type CreateComponentRoutesArgs<T extends object> = (
       assetsPath?: string;
     }
   | {
-      path: (routerPrefix: string) => (url: string) => boolean;
+      path: (routerPrefix: string) => (url: string) => CancelablePromise<boolean> | boolean;
       /**
        * Used for generating the docs on the main route.
        *

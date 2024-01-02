@@ -20,7 +20,6 @@ import { Callbacks } from './lib/Callbacks';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
 import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
 import allRoutes from './routers/router';
-import { createFakeCancelable } from './lib/createFakeCancelable';
 import {
   CONTENT_TIMEOUT_MESSAGE,
   DECOMPRESS_TIMEOUT_MESSAGE,
@@ -74,6 +73,11 @@ async function main() {
       'The maximum number of routes to build simultaneously. This is ignored if reusing artifacts. Defaults to 1.',
       '1'
     )
+    .option(
+      '--path-resolve-parallelism <number>',
+      'The maximum number of templated paths to resolve simultaneously per request. Ignored unless serving.',
+      '10'
+    )
     .option('--color, --no-color', 'Whether to use color in the console. Defaults to auto-detect')
     .parse();
 
@@ -91,6 +95,7 @@ async function main() {
     serve: optionsRaw.serve,
     artifacts: optionsRaw.reuseArtifacts ? 'reuse' : 'rebuild',
     buildParallelism: 1,
+    pathResolveParallelism: 10,
     docsOnly: false,
   };
 
@@ -125,6 +130,13 @@ async function main() {
         fs.promises.readFile(optionsTyped.sslCertfile),
         fs.promises.readFile(optionsTyped.sslKeyfile),
       ]);
+    }
+
+    try {
+      optionsTyped.pathResolveParallelism = parseInt(optionsRaw.pathResolveParallelism);
+    } catch (e) {
+      console.error('--path-resolve-parallelism must be a number');
+      process.exit(1);
     }
   }
 
@@ -170,9 +182,8 @@ async function main() {
   const updater = updaterRaw as CancelablePromise<void>;
 
   const requestHandler = handleRequests({
+    args: optionsTyped as CommandLineArgs & { host: string; port: string },
     router,
-    host: optionsTyped.host!,
-    port: optionsTyped.port!,
     cert,
     key,
   });
@@ -539,21 +550,19 @@ async function flattenRoutes(opts: CommandLineArgs): Promise<RouteWithPrefix[]> 
  * options, and begins listening for requests. Returns the initialized server.
  */
 function handleRequests({
+  args,
   router,
-  host,
-  port,
   cert,
   key,
 }: {
+  args: CommandLineArgs & { host: string; port: string };
   router: RootRouter;
-  host: string;
-  port: number;
   cert: Buffer | undefined;
   key: Buffer | undefined;
 }): CancelablePromise<void> {
   const rawHandleRequest = timeRequestMiddleware.bind(
     undefined,
-    routerRequestHandler.bind(undefined, router)
+    routerRequestHandler.bind(undefined, args, router)
   );
   const runningRequests: Record<number, CancelablePromise<void>> = {};
   let requestCounter = 0;
@@ -575,16 +584,18 @@ function handleRequests({
   let server: http.Server | https.Server;
   if (cert === undefined || key === undefined) {
     server = http.createServer(handleRequest);
-    server.listen(port, host, () => {
+    server.listen(args.port, args.host, () => {
       console.log(
-        `${colorNow()} ${chalk.whiteBright(`server listening on http://${host}:${port}`)}`
+        `${colorNow()} ${chalk.whiteBright(`server listening on http://${args.host}:${args.port}`)}`
       );
     });
   } else {
     server = https.createServer({ cert, key }, handleRequest);
-    server.listen(port, host, () => {
+    server.listen(args.port, args.host, () => {
       console.log(
-        `${colorNow()} ${chalk.whiteBright(`server listening on https://${host}:${port}`)}`
+        `${colorNow()} ${chalk.whiteBright(
+          `server listening on https://${args.host}:${args.port}`
+        )}`
       );
     });
   }
@@ -722,20 +733,72 @@ function timeRequestMiddleware(
 }
 
 function routerRequestHandler(
+  args: CommandLineArgs,
   router: RootRouter,
   req: http.IncomingMessage,
   res: http.ServerResponse
 ): CancelablePromise<void> {
-  if (req.url === undefined || req.method === undefined) {
-    return createFakeCancelable(() => defaultRequestHandler(req, res));
-  }
+  return constructCancelablePromise<void>({
+    body: async (state, resolve, reject) => {
+      const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+      if (state.finishing) {
+        if (!state.done) {
+          state.done = true;
+          reject(new Error('canceled'));
+        }
+        return;
+      }
 
-  const route = useRouterToRoute(router, req.method, req.url);
-  if (route === null) {
-    return createFakeCancelable(() => defaultRequestHandler(req, res));
-  }
+      if (req.url === undefined || req.method === undefined) {
+        state.finishing = true;
+        await defaultRequestHandler(req, res);
+        state.done = true;
+        resolve();
+        return;
+      }
 
-  return route.handler(req, res);
+      const routeCancelable = useRouterToRoute(args, router, req.method, req.url);
+      state.cancelers.add(routeCancelable.cancel);
+      try {
+        await Promise.race([routeCancelable.promise, canceled.promise]);
+      } catch (e) {}
+
+      if (state.finishing) {
+        if (!state.done) {
+          state.done = true;
+          reject(new Error('canceled'));
+        }
+        return;
+      }
+
+      state.cancelers.remove(routeCancelable.cancel);
+      const route = await routeCancelable.promise;
+      if (route === null) {
+        state.finishing = true;
+        await defaultRequestHandler(req, res);
+        state.done = true;
+        resolve();
+        return;
+      }
+
+      const routeHandler = route.handler(req, res);
+      state.cancelers.add(routeHandler.cancel);
+      if (state.finishing) {
+        routeHandler.cancel();
+      }
+
+      try {
+        await routeHandler.promise;
+        state.finishing = true;
+        state.done = true;
+        resolve();
+      } catch (e) {
+        state.finishing = true;
+        state.done = true;
+        reject(e);
+      }
+    },
+  });
 }
 
 async function defaultRequestHandler(req: http.IncomingMessage, res: http.ServerResponse) {

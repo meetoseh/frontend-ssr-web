@@ -1,10 +1,13 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Route } from './route';
 import { CancelablePromise } from '../../lib/CancelablePromise';
+import { CommandLineArgs } from '../../CommandLineArgs';
+import { constructCancelablePromise } from '../../lib/CancelablePromiseConstructor';
+import { createCancelablePromiseFromCallbacks } from '../../lib/createCancelablePromiseFromCallbacks';
 
 export type TemplatedRoute = Omit<Route, 'methods' | 'path' | 'handler'> & {
   methods: Set<string>;
-  path: (url: string) => boolean;
+  path: (url: string) => boolean | CancelablePromise<boolean>;
   handler: (req: IncomingMessage, res: ServerResponse) => CancelablePromise<void>;
 };
 
@@ -83,6 +86,7 @@ export const addRouteToRootRouter = (
   pathPrefix: string[],
   route: Route
 ): void => {
+  pathPrefix = pathPrefix.filter((part) => part.length > 0);
   if (typeof route.path === 'string') {
     const handler = route.handler(`${router.prefix}${pathPrefix.join('')}`);
     for (const method of route.methods) {
@@ -127,21 +131,23 @@ export const addRouteToRootRouter = (
  * @returns The route which should handle the request, or null if no route was found.
  */
 export const useRouterToRoute = (
+  args: CommandLineArgs,
   router: RootRouter,
   method: string,
   url: string
-): TemplatedRoute | SimpleRoute | null => {
+): CancelablePromise<TemplatedRoute | SimpleRoute | null> => {
   const simpleKey = `${method}: ${url}`;
   const simpleRoute = router.simplePaths[simpleKey];
   if (simpleRoute !== undefined) {
-    return simpleRoute;
+    return { done: () => true, cancel: () => {}, promise: Promise.resolve(simpleRoute) };
   }
 
   if (!url.startsWith(router.prefix)) {
-    return null;
+    return { done: () => true, cancel: () => {}, promise: Promise.resolve(null) };
   }
 
   return useNestedRouterToRoute(
+    args,
     router,
     method,
     url,
@@ -154,41 +160,206 @@ export const useRouterToRoute = (
  * Routes using a non-root router by evaluating templated paths and subrouters.
  */
 const useNestedRouterToRoute = (
+  args: CommandLineArgs,
   router: Router,
   method: string,
   url: string,
   pathStartsAt: number,
   qmarkIndex: number
-): TemplatedRoute | SimpleRoute | null => {
+): CancelablePromise<TemplatedRoute | SimpleRoute | null> => {
   if (url[pathStartsAt] !== '/') {
-    return null;
+    return { done: () => true, cancel: () => {}, promise: Promise.resolve(null) };
   }
 
-  let partEndsAt = url.indexOf('/', pathStartsAt + 1);
+  return constructCancelablePromise<TemplatedRoute | SimpleRoute | null>({
+    body: async (state, resolve, reject) => {
+      const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
 
-  if (partEndsAt !== -1 && (qmarkIndex === -1 || partEndsAt < qmarkIndex)) {
-    const part = url.slice(pathStartsAt, partEndsAt);
-    const subrouter = router.subrouters[part];
-    if (subrouter !== undefined) {
-      const subrouterResult = useNestedRouterToRoute(
-        subrouter,
-        method,
-        url,
-        partEndsAt,
-        qmarkIndex
-      );
-      if (subrouterResult !== null) {
-        return subrouterResult;
+      let partEndsAt = url.indexOf('/', pathStartsAt + 1);
+
+      // Note that we must prefer earlier indices to later indices, even if we
+      // find a "match" in a later index, to maintain determinism. We are evaluating
+      // the future ones in case the ones we already have fail
+      let evaluating: CancelablePromise<TemplatedRoute | SimpleRoute | null>[] = [];
+      const cleanup = async () => {
+        for (const prom of evaluating) {
+          prom.promise.catch(() => {});
+          prom.cancel();
+        }
+        await Promise.allSettled(evaluating.map((prom) => prom.promise));
+      };
+
+      const waitForProgressOrCanceled = async () => {
+        if (evaluating.length === 0 || state.finishing) {
+          return;
+        }
+
+        const notDone = evaluating.filter((prom) => !prom.done());
+        if (notDone.length === 0) {
+          return;
+        }
+
+        await Promise.race([canceled.promise, ...notDone.map((prom) => prom.promise)]);
+      };
+
+      const sweepDone = async (): Promise<boolean> => {
+        while (evaluating.length > 0 && evaluating[0].done()) {
+          const first = evaluating.shift()!;
+          try {
+            const result = await first.promise;
+            if (result !== null) {
+              state.finishing = true;
+              await cleanup();
+              state.done = true;
+              resolve(result);
+              return true;
+            }
+          } catch (e) {
+            state.finishing = true;
+            await cleanup();
+            state.done = true;
+            reject(e);
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      const queuePossibleRoute = async (
+        prom: CancelablePromise<TemplatedRoute | SimpleRoute | null>
+      ): Promise<boolean> => {
+        let seenAnswer = false;
+        evaluating.push(prom);
+        while (true) {
+          if (state.finishing) {
+            await cleanup();
+            state.done = true;
+            reject(new Error('canceled'));
+            return true;
+          }
+
+          if (await sweepDone()) {
+            return true;
+          }
+
+          // If we know that one of these routes will match, then we don't
+          // want to return since there's no point in queueing more routes
+          if (seenAnswer) {
+            await waitForProgressOrCanceled();
+            continue;
+          }
+
+          for (let i = 0; i < evaluating.length; i++) {
+            if (!evaluating[i].done()) {
+              continue;
+            }
+
+            try {
+              const result = await evaluating[i].promise;
+              if (result !== null) {
+                seenAnswer = true;
+                break;
+              }
+            } catch (e) {
+              state.finishing = true;
+              await cleanup();
+              state.done = true;
+              reject(e);
+              return true;
+            }
+          }
+
+          if (seenAnswer) {
+            await waitForProgressOrCanceled();
+            continue;
+          }
+
+          if (evaluating.length < args.pathResolveParallelism) {
+            return false;
+          }
+
+          let numActuallyRunning = 0;
+          for (const prom of evaluating) {
+            if (!prom.done()) {
+              numActuallyRunning++;
+            }
+          }
+
+          if (numActuallyRunning < args.pathResolveParallelism) {
+            return false;
+          }
+
+          await waitForProgressOrCanceled();
+        }
+      };
+
+      if (partEndsAt !== -1 && (qmarkIndex === -1 || partEndsAt < qmarkIndex)) {
+        const part = url.slice(pathStartsAt, partEndsAt);
+        const subrouter = router.subrouters[part];
+        if (subrouter !== undefined) {
+          const subrouterResult = useNestedRouterToRoute(
+            args,
+            subrouter,
+            method,
+            url,
+            partEndsAt,
+            qmarkIndex
+          );
+          if (await queuePossibleRoute(subrouterResult)) {
+            return;
+          }
+        }
       }
-    }
-  }
 
-  for (let i = 0; i < router.templatedPaths.length; i++) {
-    const path = router.templatedPaths[i];
-    if (path.methods.has(method) && path.path(url)) {
-      return path;
-    }
-  }
+      for (let i = 0; i < router.templatedPaths.length; i++) {
+        const path = router.templatedPaths[i];
+        if (path.methods.has(method)) {
+          const isMatch = path.path(url);
+          if (isMatch === true || isMatch === false) {
+            if (
+              await queuePossibleRoute({
+                done: () => true,
+                cancel: () => {},
+                promise: Promise.resolve(isMatch ? path : null),
+              })
+            ) {
+              return;
+            }
+          } else {
+            if (
+              await queuePossibleRoute({
+                done: () => isMatch.done(),
+                cancel: () => isMatch.cancel(),
+                promise: isMatch.promise.then((isMatch) => (isMatch ? path : null)),
+              })
+            ) {
+              return;
+            }
+          }
+        }
+      }
 
-  return null;
+      while (true) {
+        if (evaluating.length === 0) {
+          state.finishing = true;
+          state.done = true;
+          resolve(null);
+          return;
+        }
+
+        if (state.finishing) {
+          await cleanup();
+          state.done = true;
+          reject(new Error('canceled'));
+          return;
+        }
+
+        await waitForProgressOrCanceled();
+        if (await sweepDone()) {
+          return;
+        }
+      }
+    },
+  });
 };

@@ -300,3 +300,28 @@ export const templatedPath = (
     },
   ];
 };
+
+/**
+ * Generates a function which matches /{uid}
+ *
+ * Unlike templatedPath, this does not end on a fixed string. It also
+ * is generally more restrictive.
+ *
+ * @param allowQueryParameters If true, a query string is allowed in the url and not validated,
+ *  otherwise, the url must not contain a query string to match
+ * @returns A function which extracts the trailing uid, if it's valid, or null otherwise
+ */
+export const simpleUidPath = (
+  allowQueryParameters = false
+): ((prefix: string) => (url: string) => string | null) => {
+  return (prefix) => {
+    const prefixLength = prefix.length;
+
+    const validPathPart = allowQueryParameters
+      ? /^\/([a-zA-Z0-9_-]{4,255})(\?.*)?$/
+      : /^\/([a-zA-Z0-9_-]{4,255})$/;
+    return (url: string) => {
+      return url.substring(prefixLength).match(validPathPart)?.[1] ?? null;
+    };
+  };
+};

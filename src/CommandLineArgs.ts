@@ -40,6 +40,18 @@ export type CommandLineArgs = {
   buildParallelism: number;
 
   /**
+   * For paths for which the correct handler is ambiguous, how many
+   * handlers are allowed to check if they match the path in parallel.
+   *
+   * For example, if a path might refer to either a journey or a series, and
+   * those have no identifying prefix and both require a database lookup, and we
+   * have not specifically optimized our routes so that this can be checked in a
+   * single query, then a path resolve parallelism of 1 would have us check one
+   * after the other, whereas 2 means both queries are dispatched in parallel.
+   */
+  pathResolveParallelism: number;
+
+  /**
    * If true we are constructing routes solely for the purpose of building
    * the openapi schema / sitemap etc. This may be run in parallel with
    * a standard build and hence must be essentially side-effect free.

@@ -59,7 +59,7 @@ export type Route = {
    * }
    * ```
    */
-  path: string | ((routerPrefix: string) => (url: string) => boolean);
+  path: string | ((routerPrefix: string) => (url: string) => CancelablePromise<boolean> | boolean);
 
   /**
    * Returns a function which handles the given http request which matches the
