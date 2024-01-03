@@ -33,10 +33,8 @@ export default [1].map(
         operationId: `management_example${i}`,
       },
       args,
-      getSitemapEntries: (routerPrefix) => ({
-        done: () => true,
-        cancel: () => {},
-        promise: Promise.resolve([
+      getSitemapEntries: (routerPrefix, pump) =>
+        pump([
           {
             path: (routerPrefix + '/example1') as `/${string}`,
             significantContentSHA512: hashElementForSitemap(
@@ -44,6 +42,5 @@ export default [1].map(
             ),
           },
         ]),
-      }),
     })
 );

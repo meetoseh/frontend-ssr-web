@@ -138,7 +138,7 @@ test('routes finish out of order', async () => {
     docs: [
       {
         templatedRelativePath: `/test-${delay}`,
-        getSitemapEntries: () => createFakeCancelable(async () => []),
+        getSitemapEntries: () => createFakeCancelable(async () => {}),
         pathItem: {},
       },
     ],

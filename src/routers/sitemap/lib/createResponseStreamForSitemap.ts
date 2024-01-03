@@ -1,11 +1,13 @@
 import { Readable } from 'stream';
-import { Sitemap, SitemapEntry } from './Sitemap';
+import { SitemapEntry, StreamedSitemap } from './Sitemap';
 import type { Itgs } from '../../../lib/Itgs';
 import { colorNow } from '../../../logging';
 import chalk from 'chalk';
 import { randomBytes } from 'crypto';
 import { RqliteParameter } from 'rqdb';
 import { inspect } from 'util';
+import { Callbacks } from '../../../lib/Callbacks';
+import { createCancelablePromiseFromCallbacks } from '../../../lib/createCancelablePromiseFromCallbacks';
 
 /**
  * Creates a response stream which renders the given sitemap in XML format
@@ -23,14 +25,19 @@ import { inspect } from 'util';
 export const createResponseStreamForSitemap = (
   itgs: Itgs,
   rootFrontendUrl: string,
-  sitemap: Sitemap,
+  sitemap: StreamedSitemap,
   format: 'xml' | 'plain',
   charset: 'utf-8' | 'ascii'
 ): Readable => {
+  const generatorState: GeneratorState = {
+    finishing: false,
+    cancelers: new Callbacks<undefined>(),
+  };
+
   const myGenerator =
     format === 'xml'
-      ? createGeneratorForSitemapXML(itgs, rootFrontendUrl, sitemap, charset)
-      : createGeneratorForSitemapPlain(rootFrontendUrl, sitemap);
+      ? createGeneratorForSitemapXML(itgs, rootFrontendUrl, sitemap, charset, generatorState)
+      : createGeneratorForSitemapPlain(rootFrontendUrl, sitemap, generatorState);
   const stream = new Readable({
     read: async () => {
       const result = await myGenerator.next();
@@ -41,14 +48,26 @@ export const createResponseStreamForSitemap = (
       }
     },
   });
+  stream.on('close', () => {
+    if (!generatorState.finishing) {
+      generatorState.finishing = true;
+      generatorState.cancelers.call(undefined);
+    }
+  });
   return stream;
+};
+
+type GeneratorState = {
+  finishing: boolean;
+  cancelers: Callbacks<undefined>;
 };
 
 const createGeneratorForSitemapXML = async function* (
   itgs: Itgs,
   rootFrontendUrl: string,
-  sitemap: Sitemap,
-  charset: 'utf-8' | 'ascii'
+  sitemap: StreamedSitemap,
+  charset: 'utf-8' | 'ascii',
+  state: GeneratorState
 ) {
   yield `<?xml version="1.0" encoding="${charset.toLocaleUpperCase()}"?>\n`;
   yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
@@ -58,12 +77,17 @@ const createGeneratorForSitemapXML = async function* (
   const batchSize = 100;
   const requestDate = new Date();
 
-  for (let startIndex = 0; startIndex < sitemap.entries.length; startIndex += batchSize) {
-    const endIndex = Math.min(startIndex + batchSize, sitemap.entries.length);
-    const paths = sitemap.entries.slice(startIndex, endIndex).map((entry) => entry.path);
+  const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+  const canceledSignalController = new AbortController();
+  const canceledSignal = canceledSignalController.signal;
+  state.cancelers.add(() => canceledSignalController.abort());
+  const entriesBuffer: SitemapEntry[] = [];
+
+  const writeCurrentBufferByRef = async function* () {
+    const paths = entriesBuffer.map((entry) => entry.path);
     const pathToEntry = new Map<string, SitemapEntry>();
-    for (let i = startIndex; i < endIndex; i++) {
-      pathToEntry.set(sitemap.entries[i].path, sitemap.entries[i]);
+    for (const entry of entriesBuffer) {
+      pathToEntry.set(entry.path, entry);
     }
 
     const response = await cursor.execute(
@@ -71,9 +95,14 @@ const createGeneratorForSitemapXML = async function* (
         'WHERE path IN (?' +
         ',?'.repeat(paths.length - 1) +
         ')',
-      paths
+      paths,
+      {
+        signal: canceledSignal,
+      }
     );
-
+    if (state.finishing) {
+      return;
+    }
     const foundPaths = new Map<string, Date>();
     const newPaths = new Set(paths);
     const updatedPaths = new Set<string>();
@@ -158,28 +187,106 @@ const createGeneratorForSitemapXML = async function* (
       }
     }
 
-    for (let i = startIndex; i < endIndex; i++) {
-      const entry = sitemap.entries[i];
+    for (const entry of entriesBuffer) {
       const lastModified = foundPaths.get(entry.path) ?? requestDate;
-      const lastModifiedDate = `${lastModified
-        .getUTCFullYear()
+      const lastModifiedDate = `${lastModified.getUTCFullYear().toString().padStart(4, '0')}-${(
+        lastModified.getUTCMonth() + 1
+      )
         .toString()
-        .padStart(4, '0')}-${lastModified.getUTCMonth().toString().padStart(2, '0')}-${lastModified
-        .getUTCDate()
-        .toString()
-        .padStart(2, '0')}`;
+        .padStart(2, '0')}-${lastModified.getUTCDate().toString().padStart(2, '0')}`;
       yield '  <url>\n';
       yield `    <loc>${rootFrontendUrl}${entry.path}</loc>\n`;
       yield `    <lastmod>${lastModifiedDate}</lastmod>\n`;
       yield '  </url>\n';
+    }
+  };
+
+  while (true) {
+    if (state.finishing) {
+      return;
+    }
+
+    const nextSetProm = sitemap.entries.read();
+    try {
+      await Promise.race([canceled.promise, nextSetProm.promise]);
+    } catch (e) {
+      nextSetProm.cancel();
+      state.finishing = true;
+      throw new Error(`error getting sitemap entries: ${e}`);
+    }
+
+    if (state.finishing) {
+      nextSetProm.cancel();
+      return;
+    }
+
+    const nextSet = await nextSetProm.promise;
+    if (nextSet === null) {
+      break;
+    }
+
+    entriesBuffer.push(...nextSet);
+    if (entriesBuffer.length < batchSize) {
+      continue;
+    }
+
+    try {
+      yield* writeCurrentBufferByRef();
+    } catch (e) {
+      if (state.finishing) {
+        return;
+      }
+      throw new Error(`error writing sitemap entries from current buffer: ${e}`);
+    }
+    entriesBuffer.splice(0, entriesBuffer.length);
+  }
+
+  if (state.finishing) {
+    return;
+  }
+
+  if (entriesBuffer.length > 0) {
+    try {
+      yield* writeCurrentBufferByRef();
+    } catch (e) {
+      if (state.finishing) {
+        return;
+      }
+      throw new Error(`error writing final set of sitemap entries: ${e}`);
     }
   }
 
   yield '</urlset>\n';
 };
 
-const createGeneratorForSitemapPlain = function* (rootFrontendUrl: string, sitemap: Sitemap) {
-  for (const entry of sitemap.entries) {
-    yield `${rootFrontendUrl}${entry.path}\n`;
+const createGeneratorForSitemapPlain = async function* (
+  rootFrontendUrl: string,
+  sitemap: StreamedSitemap,
+  state: GeneratorState
+) {
+  const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+  while (!state.finishing) {
+    const nextSetProm = sitemap.entries.read();
+    try {
+      await Promise.race([canceled.promise, nextSetProm.promise]);
+    } catch (e) {
+      nextSetProm.cancel();
+      state.finishing = true;
+      throw new Error(`error getting sitemap entries: ${e}`);
+    }
+
+    if (state.finishing) {
+      nextSetProm.cancel();
+      return;
+    }
+
+    const nextSet = await nextSetProm.promise;
+    if (nextSet === null) {
+      break;
+    }
+
+    for (const entry of nextSet) {
+      yield `${rootFrontendUrl}${entry.path}\n`;
+    }
   }
 };

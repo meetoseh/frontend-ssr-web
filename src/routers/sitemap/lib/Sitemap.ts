@@ -1,3 +1,5 @@
+import { CancelablePromise } from '../../../lib/CancelablePromise';
+
 export type SitemapEntry = {
   /**
    * The path to where the content can be accessed.
@@ -43,4 +45,11 @@ export type Sitemap = {
    * The entries within the sitemap
    */
   entries: SitemapEntry[];
+};
+
+export type StreamedSitemap = {
+  entries: {
+    read: () => CancelablePromise<SitemapEntry[] | null>;
+    close: () => Promise<void>;
+  };
 };

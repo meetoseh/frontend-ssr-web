@@ -1,5 +1,9 @@
+import { AdaptedRqliteResultItem } from 'rqdb';
 import { CommandLineArgs } from '../../../CommandLineArgs';
 import { CancelablePromise } from '../../../lib/CancelablePromise';
+import { constructCancelablePromise } from '../../../lib/CancelablePromiseConstructor';
+import { withItgs } from '../../../lib/Itgs';
+import { createCancelablePromiseFromCallbacks } from '../../../lib/createCancelablePromiseFromCallbacks';
 import { createComponentRoutes } from '../../lib/createComponentRoutes';
 import { simpleUidPath } from '../../lib/pathHelpers';
 import { PendingRoute } from '../../lib/route';
@@ -9,6 +13,9 @@ import {
   SharedUnlockedClassBody,
   SharedUnlockedClassProps,
 } from '../components/SharedUnlockedClassApp';
+import { SitemapEntry } from '../../sitemap/lib/Sitemap';
+import { finishWithEncodedServerResponse } from '../../lib/acceptEncoding';
+import { Readable } from 'stream';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -17,7 +24,63 @@ export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<Pend
 
       return (path: string): CancelablePromise<boolean> | boolean => {
         const slug = pathExtractor(path);
-        return slug === 'example-slug';
+        if (slug === null) {
+          return false;
+        }
+
+        return constructCancelablePromise({
+          body: async (state, resolve, reject) => {
+            await withItgs(async (itgs) => {
+              const conn = await itgs.conn();
+              const cursor = conn.cursor('none');
+
+              if (state.finishing) {
+                state.done = true;
+                reject(new Error('canceled'));
+                return;
+              }
+
+              const abortController = new AbortController();
+              const abortSignal = abortController.signal;
+              state.cancelers.add(() => {
+                abortController.abort();
+              });
+
+              let response: AdaptedRqliteResultItem;
+              try {
+                response = await cursor.execute(
+                  `
+SELECT 1 FROM journey_slugs, journeys
+WHERE
+  journey_slugs.slug = ?
+  AND journey_slugs.journey_id IS NOT NULL
+  AND journey_slugs.journey_id = journeys.id
+  AND journeys.deleted_at IS NULL
+  AND journeys.special_category IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM course_journeys
+    WHERE course_journeys.journey_id = journeys.id
+  )
+                  `,
+                  [slug],
+                  {
+                    signal: abortSignal,
+                  }
+                );
+              } catch (e) {
+                const canceled = state.finishing;
+                state.finishing = true;
+                state.done = true;
+                reject(new Error(canceled ? 'canceled' : `database error: ${e}`));
+                return;
+              }
+
+              state.finishing = true;
+              state.done = true;
+              resolve(response.results !== undefined && response.results.length > 0);
+            });
+          },
+        });
       };
     },
     templatedRelativePath: '/{slug}',
@@ -32,14 +95,111 @@ export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<Pend
         .map((a) => a.unprefixedPath);
 
       return (routerPrefix) => {
+        const pathExtractor = simpleUidPath(true)(routerPrefix);
         const stylesheets = unprefixedStylesheets.map((href) => `${routerPrefix}${href}`);
-        return async (): Promise<SharedUnlockedClassProps> => {
-          return {
-            uid: 'oseh_j_test',
-            title: 'Example',
-            description: 'This is a hard coded description for testing',
-            stylesheets,
-          };
+        return (args): Promise<SharedUnlockedClassProps> => {
+          if (args.req.url === undefined) {
+            throw new Error('no url');
+          }
+          const slug = pathExtractor(args.req.url);
+
+          return withItgs(async (itgs): Promise<SharedUnlockedClassProps> => {
+            const conn = await itgs.conn();
+            const cursor = conn.cursor('none');
+            const canceled = createCancelablePromiseFromCallbacks(args.state.cancelers);
+            canceled.promise.catch(() => {});
+            if (args.state.finishing) {
+              canceled.cancel();
+              throw new Error('canceled');
+            }
+
+            const abortController = new AbortController();
+            const abortSignal = abortController.signal;
+            const handleAbort = () => {
+              abortController.abort();
+            };
+            args.state.cancelers.add(handleAbort);
+
+            try {
+              const response = await cursor.execute(
+                `
+SELECT
+  canonical_journey_slugs.slug,
+  canonical_journey_slugs.primary_at,
+  journeys.uid,
+  journeys.title,
+  journeys.description
+FROM journeys, journey_slugs AS canonical_journey_slugs
+WHERE
+  journeys.id = canonical_journey_slugs.journey_id
+  AND NOT EXISTS (
+    SELECT 1 FROM journey_slugs AS js
+    WHERE
+      js.journey_id = canonical_journey_slugs.journey_id
+      AND (
+        js.primary_at > canonical_journey_slugs.primary_at 
+        OR (
+          js.primary_at = canonical_journey_slugs.primary_at
+          AND js.slug < canonical_journey_slugs.slug
+        )
+      )
+  )
+  AND journeys.deleted_at IS NULL
+  AND journeys.special_category IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM course_journeys
+    WHERE course_journeys.journey_id = journeys.id
+  )
+  AND EXISTS (
+    SELECT 1 FROM journey_slugs
+    WHERE
+      journey_slugs.journey_id = journeys.id
+      AND journey_slugs.slug = ?
+  )
+                `,
+                [slug],
+                {
+                  signal: abortSignal,
+                }
+              );
+
+              if (args.state.finishing) {
+                throw new Error('canceled');
+              }
+
+              if (response.results === undefined || response.results.length === 0) {
+                throw new Error('not found');
+              }
+
+              const [canonicalSlug, canonicalSlugSince, uid, title, description] =
+                response.results[0];
+              if (slug !== canonicalSlug) {
+                const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
+                const beenSevenDays = secondsSinceCanonical > 7 * 24 * 60 * 60;
+
+                args.resp.statusCode = beenSevenDays ? 301 : 302;
+                args.resp.statusMessage = beenSevenDays ? 'Moved Permanently' : 'Found';
+                args.resp.setHeader('Content-Encoding', 'identity');
+                args.resp.setHeader('Location', `${routerPrefix}/${canonicalSlug}`);
+                await finishWithEncodedServerResponse(
+                  args,
+                  'identity',
+                  Readable.from(Buffer.from(''))
+                );
+                throw new Error('handled');
+              }
+
+              return {
+                uid,
+                title,
+                description,
+                stylesheets,
+              };
+            } finally {
+              canceled.cancel();
+              args.state.cancelers.remove(handleAbort);
+            }
+          });
         };
       };
     },
@@ -50,20 +210,135 @@ export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<Pend
       operationId: `sharedUnlockedClass`,
     },
     args,
-    getSitemapEntries: (routerPrefix) => ({
-      done: () => true,
-      cancel: () => {},
-      promise: Promise.resolve([
-        {
-          path: (routerPrefix + '/example-slug') as `/${string}`,
-          significantContentSHA512: hashElementForSitemap(
-            <SharedUnlockedClassBody
-              title="Example"
-              description="This is a hard coded description for testing"
-              uid="oseh_j_test"
-            />
-          ),
+    getSitemapEntries: (routerPrefix, pump) =>
+      constructCancelablePromise({
+        body: async (state, resolve, reject) => {
+          await withItgs(async (itgs) => {
+            const conn = await itgs.conn();
+            const cursor = conn.cursor('none');
+
+            if (state.finishing) {
+              state.done = true;
+              reject(new Error('canceled'));
+              return;
+            }
+
+            const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+            const abortController = new AbortController();
+            const abortSignal = abortController.signal;
+            state.cancelers.add(() => {
+              abortController.abort();
+            });
+
+            let lastSlug: string | null = null;
+            while (true) {
+              if (state.finishing) {
+                state.done = true;
+                reject(new Error('canceled'));
+                return;
+              }
+
+              let response: AdaptedRqliteResultItem;
+              try {
+                response = await cursor.execute(
+                  `
+  SELECT
+    journey_slugs.slug,
+    journeys.uid,
+    journeys.title,
+    journeys.description
+  FROM journey_slugs, journeys
+  WHERE
+    journey_slugs.journey_id IS NOT NULL
+    AND journey_slugs.journey_id = journeys.id
+    AND (? IS NULL OR journey_slugs.slug > ?)
+    AND NOT EXISTS (
+      SELECT 1 FROM journey_slugs AS js
+      WHERE
+        journey_slugs.journey_id = js.journey_id
+        AND (
+          js.primary_at > journey_slugs.primary_at
+          OR (
+            js.primary_at = journey_slugs.primary_at
+            AND js.slug < journey_slugs.slug
+          )
+        )
+    )
+    AND journeys.deleted_at IS NULL
+    AND journeys.special_category IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM course_journeys
+      WHERE course_journeys.journey_id = journey_slugs.journey_id
+    )
+    AND (
+      journeys.variation_of_journey_id IS NULL 
+      OR (
+        NOT EXISTS (
+          SELECT 1 FROM journeys AS variations
+          WHERE
+            variations.id = journeys.variation_of_journey_id
+            AND variations.deleted_at IS NULL
+            AND variations.special_category IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM course_journeys
+              WHERE course_journeys.journey_id = variations.id
+            )
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM journeys AS variations
+          WHERE
+            variations.variation_of_journey_id = journeys.variation_of_journey_id
+            AND variations.deleted_at IS NULL
+            AND variations.special_category IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM course_journeys
+              WHERE course_journeys.journey_id = variations.id
+            )
+            AND variations.uid < journeys.uid
+        )
+      )
+    )
+  ORDER BY journey_slugs.slug ASC
+  LIMIT 100
+                  `,
+                  [lastSlug, lastSlug],
+                  {
+                    signal: abortSignal,
+                  }
+                );
+              } catch (e) {
+                const canceled = state.finishing;
+                state.finishing = true;
+                state.done = true;
+                reject(new Error(canceled ? 'canceled' : `database error: ${e}`));
+                return;
+              }
+
+              if (response.results === undefined || response.results.length === 0) {
+                break;
+              }
+
+              const entries = response.results.map(
+                ([slug, uid, title, description]): SitemapEntry => ({
+                  path: `${routerPrefix}/${slug}`,
+                  significantContentSHA512: hashElementForSitemap(
+                    <SharedUnlockedClassBody uid={uid} title={title} description={description} />
+                  ),
+                })
+              );
+              const pumpPromise = pump(entries);
+              await Promise.race([pumpPromise.promise, canceled.promise]);
+              if (state.finishing) {
+                pumpPromise.cancel();
+                await pumpPromise.promise;
+              }
+              lastSlug = response.results[response.results.length - 1][0];
+            }
+
+            state.finishing = true;
+            state.done = true;
+            resolve();
+          });
         },
-      ]),
-    }),
+      }),
   });

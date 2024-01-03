@@ -81,10 +81,10 @@ export type { Itgs };
  * once the promise resolves or rejects. The function must be careful not
  * to leak the integrations instance.
  */
-export const withItgs = async (fn: (itgs: Itgs) => Promise<void>) => {
+export const withItgs = async <T>(fn: (itgs: Itgs) => Promise<T>): Promise<T> => {
   const itgs = new Itgs();
   try {
-    await fn(itgs);
+    return await fn(itgs);
   } finally {
     await itgs.close();
   }

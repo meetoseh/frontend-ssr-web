@@ -3,10 +3,13 @@ import { CancelablePromise } from '../../lib/CancelablePromise';
 import { OASPathItem } from './openapi';
 import { CommandLineArgs } from '../../CommandLineArgs';
 import { SitemapEntry } from '../sitemap/lib/Sitemap';
+import { Itgs } from '../../lib/Itgs';
 
 export type RouteDocsGetSitemapEntries = (
-  routerPrefix: `/${string}` | ''
-) => CancelablePromise<SitemapEntry[]>;
+  routerPrefix: `/${string}` | '',
+  pump: (entries: SitemapEntry[]) => CancelablePromise<void>,
+  itgs: Itgs
+) => CancelablePromise<void>;
 
 /**
  * Describes a route that can be included within a router.

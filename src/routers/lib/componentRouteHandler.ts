@@ -58,7 +58,16 @@ export const componentRouteHandler = (
 
       const isCrawler = args.req.headers['user-agent']?.match(/bot|crawler|spider/i);
 
-      const pageData = await realBody(args);
+      let pageData: Awaited<ReturnType<typeof realBody>>;
+      try {
+        pageData = await realBody(args);
+      } catch (e) {
+        if (args.state.finishing) {
+          return;
+        }
+        throw e;
+      }
+
       const component = pageData.element;
       const props = pageData.props;
       if (args.state.finishing) {

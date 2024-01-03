@@ -1,6 +1,9 @@
 import { CommandLineArgs } from '../../../CommandLineArgs';
+import { Callbacks } from '../../../lib/Callbacks';
 import { CancelablePromise } from '../../../lib/CancelablePromise';
-import { withItgs } from '../../../lib/Itgs';
+import { constructCancelablePromise } from '../../../lib/CancelablePromiseConstructor';
+import { Itgs, withItgs } from '../../../lib/Itgs';
+import { createCancelablePromiseFromCallbacks } from '../../../lib/createCancelablePromiseFromCallbacks';
 import { AcceptMediaRangeWithoutWeight, parseAccept, selectAccept } from '../../lib/accept';
 import {
   finishWithEncodedServerResponse,
@@ -12,11 +15,10 @@ import { BAD_REQUEST_MESSAGE } from '../../lib/errors';
 import { finishWithBadEncoding } from '../../lib/finishWithBadEncoding';
 import { finishWithBadRequest } from '../../lib/finishWithBadRequest';
 import { finishWithNotAcceptable } from '../../lib/finishWithNotAcceptable';
-import { finishWithServiceUnavailable } from '../../lib/finishWithServiceUnavailable';
 import { PendingRoute } from '../../lib/route';
 import { simpleRouteHandler } from '../../lib/simpleRouteHandler';
 import { RouteWithPrefix } from '../../openapi/routes/schema';
-import { Sitemap, SitemapEntry } from '../lib/Sitemap';
+import { SitemapEntry, StreamedSitemap } from '../lib/Sitemap';
 import { createResponseStreamForSitemap } from '../lib/createResponseStreamForSitemap';
 
 const acceptableByFormat: Record<'xml' | 'plain', AcceptMediaRangeWithoutWeight[]> = {
@@ -54,7 +56,10 @@ export const constructSitemapRoute = (
 ): PendingRoute[] => {
   const makeHandler = (format: 'xml' | 'plain') => async (cliArgs: CommandLineArgs) => {
     const acceptable = acceptableByFormat[format];
-    const sitemapGetters: (() => CancelablePromise<SitemapEntry[]>)[] = [];
+    const sitemapGetters: ((
+      itgs: Itgs,
+      pump: (entries: SitemapEntry[]) => CancelablePromise<void>
+    ) => CancelablePromise<void>)[] = [];
     const rootFrontendUrl = process.env.ROOT_FRONTEND_URL;
     if (rootFrontendUrl === undefined) {
       throw new Error('ROOT_FRONTEND_URL must be set for the sitemap');
@@ -65,7 +70,7 @@ export const constructSitemapRoute = (
       flatRoutes.forEach((route) => {
         const docs = Array.isArray(route.route.docs) ? route.route.docs : [route.route.docs];
         docs.forEach((doc) => {
-          sitemapGetters.push(() => doc.getSitemapEntries(route.prefix));
+          sitemapGetters.push((itgs, pump) => doc.getSitemapEntries(route.prefix, pump, itgs));
         });
       });
     }
@@ -97,25 +102,152 @@ export const constructSitemapRoute = (
 
       const charset = (charsetRaw === 'utf8' ? 'utf-8' : charsetRaw) as 'utf-8' | 'ascii';
 
-      const sitemapEntries: SitemapEntry[] = [];
-      for (const getter of sitemapGetters) {
-        const cancelableGet = getter();
-        if (args.state.finishing) {
-          return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
-        }
-        args.state.cancelers.add(cancelableGet.cancel);
-        await Promise.race([args.canceled.promise, cancelableGet.promise]);
-        if (args.state.finishing) {
-          return finishWithServiceUnavailable(args, { retryAfterSeconds: 5 });
-        }
-        args.state.cancelers.remove(cancelableGet.cancel);
-
-        sitemapEntries.push(...(await cancelableGet.promise));
-      }
-
-      const sitemap: Sitemap = { entries: sitemapEntries };
       const cleanAccept = accept;
       await withItgs(async (itgs) => {
+        let pumped: SitemapEntry[] | null | false = null;
+        const pumpedTaken = new Callbacks<undefined>();
+        const pumpedProvided = new Callbacks<undefined>();
+        let sitemapClosed = false;
+        const sitemapClosedCallbacks = new Callbacks<undefined>();
+
+        const sitemap: StreamedSitemap = {
+          entries: {
+            read: () => {
+              if (pumped !== null) {
+                if (pumped === false) {
+                  return { done: () => true, cancel: () => {}, promise: Promise.resolve(null) };
+                }
+
+                const result = pumped;
+                pumped = null;
+                pumpedTaken.call(undefined);
+                return { done: () => true, cancel: () => {}, promise: Promise.resolve(result) };
+              }
+
+              return constructCancelablePromise({
+                body: async (state, resolve, reject) => {
+                  const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+                  const wasPumped = createCancelablePromiseFromCallbacks(pumpedProvided);
+                  if (pumped !== null) {
+                    state.finishing = true;
+                    wasPumped.cancel();
+                    canceled.cancel();
+
+                    if (pumped === false) {
+                      state.done = true;
+                      resolve(null);
+                    } else {
+                      const result = pumped;
+                      pumped = null;
+                      pumpedTaken.call(undefined);
+                      state.done = true;
+                      resolve(result);
+                    }
+                    return;
+                  }
+
+                  await Promise.race([wasPumped.promise, canceled.promise]);
+                  if (state.finishing) {
+                    if (!state.done) {
+                      state.done = true;
+                      reject(new Error('canceled'));
+                    }
+                    return;
+                  }
+
+                  if (pumped === null) {
+                    throw new Error('pumped should not be null after pumpedProvided');
+                  }
+
+                  if (pumped === false) {
+                    state.finishing = true;
+                    state.done = true;
+                    resolve(null);
+                    return;
+                  }
+
+                  state.finishing = true;
+                  const result = pumped;
+                  pumped = null;
+                  pumpedTaken.call(undefined);
+                  state.done = true;
+                  resolve(result);
+                },
+              });
+            },
+            close: async () => {
+              sitemapClosed = true;
+              sitemapClosedCallbacks.call(undefined);
+            },
+          },
+        };
+
+        const pumpLoopPromise = (async () => {
+          const pumper = (entries: SitemapEntry[] | false): CancelablePromise<void> =>
+            constructCancelablePromise({
+              body: async (state, resolve, reject) => {
+                const canceled = createCancelablePromiseFromCallbacks(state.cancelers);
+                if (state.finishing) {
+                  state.done = true;
+                  reject(new Error('canceled'));
+                  return;
+                }
+
+                if (pumped === false) {
+                  state.finishing = true;
+                  state.done = true;
+                  reject(new Error('pump() called after cancel() or done()'));
+                  return;
+                }
+
+                if (pumped !== null) {
+                  const readyToPump = createCancelablePromiseFromCallbacks(pumpedTaken);
+                  if (pumped !== null) {
+                    await Promise.race([readyToPump.promise, canceled.promise]);
+                    if (state.finishing) {
+                      state.done = true;
+                      reject(new Error('canceled'));
+                      return;
+                    }
+                  }
+
+                  readyToPump.cancel();
+                  if (pumped !== null) {
+                    throw new Error('expected pumped to be null after pumpedTaken');
+                  }
+                }
+
+                state.finishing = true;
+                pumped = entries;
+                pumpedProvided.call(undefined);
+                state.done = true;
+                resolve(undefined);
+              },
+            });
+
+          const closed = createCancelablePromiseFromCallbacks(sitemapClosedCallbacks);
+          if (sitemapClosed) {
+            closed.cancel();
+            return;
+          }
+
+          for (const getter of sitemapGetters) {
+            const getterPromise = getter(itgs, pumper);
+            await Promise.race([getterPromise.promise, closed.promise]);
+            if (sitemapClosed) {
+              getterPromise.cancel();
+              break;
+            }
+          }
+
+          if (!sitemapClosed) {
+            const finalPumper = pumper(false);
+            await Promise.race([finalPumper.promise, closed.promise]);
+            finalPumper.cancel();
+          }
+          closed.cancel();
+        })();
+
         const responseStream = createResponseStreamForSitemap(
           itgs,
           rootFrontendUrl,
@@ -133,6 +265,7 @@ export const constructSitemapRoute = (
           `${cleanAccept.type}/${cleanAccept.subtype}; charset=${charset}`
         );
         await finishWithEncodedServerResponse(args, coding, responseStream);
+        await pumpLoopPromise;
       });
     });
   };
