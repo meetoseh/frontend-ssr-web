@@ -3,5 +3,6 @@
   "files.eol": "\n",
   "python.analysis.typeCheckingMode": "basic",
   "eslint.run": "onSave",
-  "eslint.lintTask.enable": true
+  "eslint.lintTask.enable": true,
+  "css.lint.validProperties": ["composes"]
 }

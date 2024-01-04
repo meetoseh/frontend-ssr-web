@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { ValueWithCallbacks } from '../../lib/Callbacks';
+import { ValueWithCallbacks } from '../lib/Callbacks';
 import { useUnwrappedValueWithCallbacks } from '../hooks/useUnwrappedValueWithCallbacks';
 
 type RenderGuardedComponentProps<T> = {

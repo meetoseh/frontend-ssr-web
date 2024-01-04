@@ -1,5 +1,5 @@
 import { ReactElement, useCallback, useRef } from 'react';
-import { useWritableValueWithCallbacks } from '../../../lib/Callbacks';
+import { useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
 import { setVWC } from '../../../uikit/lib/setVWC';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import styles from './ExampleApp.module.css';

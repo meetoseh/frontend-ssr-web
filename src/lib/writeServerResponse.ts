@@ -1,6 +1,6 @@
 import { ServerResponse } from 'http';
 import { CancelablePromise } from './CancelablePromise';
-import { Callbacks } from './Callbacks';
+import { Callbacks } from '../uikit/lib/Callbacks';
 import { createCancelablePromiseFromCallbacks } from './createCancelablePromiseFromCallbacks';
 import { createCancelableTimeout } from './createCancelableTimeout';
 import { WRITE_TIMEOUT_MESSAGE } from '../routers/lib/errors';

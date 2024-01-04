@@ -1,5 +1,5 @@
 import { MutableRefObject, useEffect, useRef } from 'react';
-import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../../lib/Callbacks';
+import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
 import { MappedValueWithCallbacksOpts, defaultEqualityFn } from './useMappedValueWithCallbacks';
 
 /**

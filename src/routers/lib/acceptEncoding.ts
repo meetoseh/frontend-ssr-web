@@ -1,7 +1,7 @@
 import { ServerResponse } from 'http';
 import { Readable } from 'stream';
 import { CancelablePromise } from '../../lib/CancelablePromise';
-import { Callbacks } from '../../lib/Callbacks';
+import { Callbacks } from '../../uikit/lib/Callbacks';
 import { createCancelablePromiseFromCallbacks } from '../../lib/createCancelablePromiseFromCallbacks';
 import { createGzip, createBrotliCompress, createGunzip, createBrotliDecompress } from 'zlib';
 import { createCancelableTimeout } from '../../lib/createCancelableTimeout';

@@ -16,6 +16,8 @@ import {
 import { SitemapEntry } from '../../sitemap/lib/Sitemap';
 import { finishWithEncodedServerResponse } from '../../lib/acceptEncoding';
 import { Readable } from 'stream';
+import { thumbHashToDataURL } from 'thumbhash';
+import { createImageFileJWT } from '../../../lib/createImageFileJWT';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -128,8 +130,10 @@ SELECT
   canonical_journey_slugs.primary_at,
   journeys.uid,
   journeys.title,
-  journeys.description
-FROM journeys, journey_slugs AS canonical_journey_slugs
+  journeys.description,
+  image_file_exports.thumbhash,
+  image_files.uid
+FROM journeys, journey_slugs AS canonical_journey_slugs, image_files, image_file_exports
 WHERE
   journeys.id = canonical_journey_slugs.journey_id
   AND NOT EXISTS (
@@ -156,6 +160,19 @@ WHERE
       journey_slugs.journey_id = journeys.id
       AND journey_slugs.slug = ?
   )
+  AND image_files.id = journeys.darkened_background_image_file_id
+  AND image_file_exports.image_file_id = image_files.id
+  AND image_file_exports.id = (
+    SELECT ife.id FROM image_file_exports AS ife
+    WHERE
+      ife.image_file_id = image_files.id
+    ORDER BY
+      CASE WHEN ife.width = 375 THEN 1 ELSE -ife.width END DESC,
+      CASE WHEN ife.height = 667 THEN 1 ELSE -ife.height END DESC,
+      CASE WHEN ife.format = 'webp' THEN 'aaaaa' ELSE ife.format END ASC,
+      ife.id ASC
+    LIMIT 1
+  )
                 `,
                 [slug],
                 {
@@ -171,8 +188,15 @@ WHERE
                 throw new Error('not found');
               }
 
-              const [canonicalSlug, canonicalSlugSince, uid, title, description] =
-                response.results[0];
+              const [
+                canonicalSlug,
+                canonicalSlugSince,
+                uid,
+                title,
+                description,
+                imageThumbhashBase64,
+                imageUid,
+              ] = response.results[0];
               if (slug !== canonicalSlug) {
                 const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
                 const beenSevenDays = secondsSinceCanonical > 7 * 24 * 60 * 60;
@@ -189,8 +213,19 @@ WHERE
                 throw new Error('handled');
               }
 
+              const imageThumbhashDataUrl = thumbHashToDataURL(
+                Buffer.from(imageThumbhashBase64, 'base64url')
+              );
+              const imageJwt = await createImageFileJWT(imageUid);
+
               return {
                 uid,
+                slug: canonicalSlug,
+                imageThumbhashDataUrl,
+                backgroundImage: {
+                  uid: imageUid,
+                  jwt: imageJwt,
+                },
                 title,
                 description,
                 stylesheets,
@@ -322,7 +357,14 @@ WHERE
                 ([slug, uid, title, description]): SitemapEntry => ({
                   path: `${routerPrefix}/${slug}`,
                   significantContentSHA512: hashElementForSitemap(
-                    <SharedUnlockedClassBody uid={uid} title={title} description={description} />
+                    <SharedUnlockedClassBody
+                      uid={uid}
+                      title={title}
+                      description={description}
+                      imageThumbhashDataUrl=""
+                      backgroundImage={{ uid: '', jwt: '' }}
+                      slug={slug}
+                    />
                   ),
                 })
               );

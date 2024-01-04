@@ -12,7 +12,7 @@ import {
 import { finishWithBadEncoding } from './finishWithBadEncoding';
 import { STANDARD_VARY_RESPONSE } from './constants';
 import { Stream } from 'stream';
-import { Callbacks } from '../../lib/Callbacks';
+import { Callbacks } from '../../uikit/lib/Callbacks';
 
 export type ComponentRouteOptions = {
   /**

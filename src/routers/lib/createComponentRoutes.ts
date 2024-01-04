@@ -1,6 +1,6 @@
 import { ReactElement } from 'react';
 import { RouteBodyArgs } from './RouteBodyArgs';
-import { PendingRoute, Route, RouteDocsGetSitemapEntries } from './route';
+import { PendingRoute, RouteDocsGetSitemapEntries } from './route';
 import { createWebpackComponent } from './createWebpackComponent';
 import { componentRouteHandler } from './componentRouteHandler';
 import path from 'path';
@@ -12,6 +12,30 @@ import { simpleRouteHandler } from './simpleRouteHandler';
 import { finishWithServerError } from './finishWithServerError';
 import { CommandLineArgs } from '../../CommandLineArgs';
 import { CancelablePromise } from '../../lib/CancelablePromise';
+import crypto from 'crypto';
+import { parseContentType } from './contentType';
+import { copyWithStringSubstitution } from './copyWithStringSubstitution';
+import { IncomingMessage, ServerResponse } from 'http';
+
+/**
+ * This string is used as the prefix for the css build path when creating
+ * component routes. When preparing for serving assets from a particular
+ * route prefix, we create a copy of the css files with the correct prefix
+ * using string substitution
+ */
+const ROUTE_PREFIX_IDENTIFIER = '/Gm9UPI0xlReHHzDBrsp-pA-Hji83bJDxcKoeRZMCyiI';
+
+const DEV_CLS_SCRIPT = `
+let cls = 0;
+new PerformanceObserver((entryList) => {
+  for (const entry of entryList.getEntries()) {
+    if (!entry.hadRecentInput) {
+      cls += entry.value;
+      console.log('Current CLS value:', cls, entry);
+    }
+  }
+}).observe({type: 'layout-shift', buffered: true});
+`;
 
 type BundledAsset = {
   /** The name of the asset, e.g., `main.css` */
@@ -28,7 +52,8 @@ type BundledAsset = {
 
   /**
    * The path to the asset on the local filesystem, relative to the project
-   * root. For example, `build/routers/example/main.d587bbd6e38337f5accd.css`
+   * root, before substituting paths for the correct route prefix.
+   * For example, `build/routers/example/main.d587bbd6e38337f5accd.css`
    */
   localPath: string;
 
@@ -48,13 +73,6 @@ type BundledAsset = {
    * The content-type that the asset is served with, e.g., `text/css; charset=utf-8`
    */
   contentType: string;
-
-  /**
-   * The handler for serving this asset. This is taken care of by the
-   * createComponentRoutes function and thus is not usually useful to
-   * the callee
-   */
-  handler: Route['handler'];
 };
 
 /**
@@ -198,6 +216,10 @@ export const createComponentRoutes = async <T extends object>({
       };
 
       for (const filename of filenames) {
+        if (fs.lstatSync(path.join(folder, filename)).isDirectory()) {
+          continue;
+        }
+
         const filenameExt = path.extname(filename);
         const mimeType = mime.lookup(filenameExt);
         if (mimeType === false) {
@@ -214,10 +236,6 @@ export const createComponentRoutes = async <T extends object>({
           }
           return mimeType;
         })();
-        const handler = await staticRouteHandler(args, path.join(folder, filename), {
-          contentType,
-          immutable: true,
-        });
         const filenameParts = filename.split('.');
         const contentHash = filenameParts[1];
         const filenameWithoutContentHash =
@@ -231,7 +249,6 @@ export const createComponentRoutes = async <T extends object>({
           unprefixedPath: normalizePath(path.join(realAssetsPath, filename)),
           suffix: '/' + normalizePath(filename),
           contentType,
-          handler,
         });
       }
       outerBundleArgs = bundle;
@@ -266,7 +283,7 @@ export const createComponentRoutes = async <T extends object>({
     await createWebpackComponent({
       componentPath,
       bundleFolder: buildFolder,
-      cssPublicPath: realAssetsPath,
+      cssPublicPath: ROUTE_PREFIX_IDENTIFIER,
     });
     await initBundleArgs();
   }
@@ -299,6 +316,7 @@ export const createComponentRoutes = async <T extends object>({
           },
           (routerPrefix) => ({
             bootstrapModules: bootstrapModules.map((m) => routerPrefix + m),
+            bootstrapScriptContent: process.env.ENVIRONMENT === 'dev' ? DEV_CLS_SCRIPT : undefined,
           })
         );
       },
@@ -325,7 +343,7 @@ export const createComponentRoutes = async <T extends object>({
     },
     {
       methods: ['GET'],
-      path: async (): Promise<(routerPrefix: string) => (url: string) => boolean> => {
+      path: async () => {
         if (outerBundleArgs === undefined) {
           outerBundleArgs = await initBundleArgs();
         }
@@ -347,17 +365,69 @@ export const createComponentRoutes = async <T extends object>({
         }
         const bundleArgs = outerBundleArgs;
 
-        return (routerPrefixRaw: string) => {
+        return async (
+          routerPrefixRaw: string
+        ): Promise<(req: IncomingMessage, res: ServerResponse) => CancelablePromise<void>> => {
           const realPrefix = routerPrefixRaw + realAssetsPath;
-          const prefixedAssetsBySuffix = Object.fromEntries(
-            Object.entries(bundleArgs.assetsBySuffix).map(([suffix, asset]) => [
-              suffix,
-              {
-                ...asset,
-                handler: asset.handler(realPrefix),
-              },
-            ])
-          );
+          const realPrefixHash = (() => {
+            const res = crypto.createHash('sha256');
+            res.update(realPrefix);
+            return res.digest('base64url');
+          })();
+
+          const assetPathForCSSInPrefix = path.join(buildFolder, realPrefixHash);
+          if (args.artifacts === 'rebuild') {
+            await fs.promises.mkdir(assetPathForCSSInPrefix);
+
+            for (const asset of Object.values(bundleArgs.assetsByName)) {
+              const assetContentType = parseContentType(asset.contentType);
+              if (
+                assetContentType === undefined ||
+                assetContentType.type !== 'text' ||
+                assetContentType.subtype !== 'css'
+              ) {
+                continue;
+              }
+
+              const assetName = path.basename(asset.localPath);
+              const prefixedPath = path.join(assetPathForCSSInPrefix, assetName);
+              await copyWithStringSubstitution(
+                asset.localPath,
+                prefixedPath,
+                ROUTE_PREFIX_IDENTIFIER,
+                realPrefix
+              );
+            }
+          }
+
+          const prefixedAssetsBySuffix: Record<
+            string,
+            BundledAsset & {
+              handler: (req: IncomingMessage, resp: ServerResponse) => CancelablePromise<void>;
+            }
+          > = {};
+
+          for (const [suffix, asset] of Object.entries(bundleArgs.assetsBySuffix)) {
+            let localPath = asset.localPath;
+            const contentType = parseContentType(asset.contentType);
+            if (
+              contentType !== undefined &&
+              contentType.type === 'text' &&
+              contentType.subtype === 'css'
+            ) {
+              localPath = path.join(assetPathForCSSInPrefix, path.basename(localPath));
+            }
+
+            const handler = await staticRouteHandler(args, localPath, {
+              contentType: asset.contentType,
+              immutable: true,
+            });
+            prefixedAssetsBySuffix[suffix] = {
+              ...asset,
+              localPath,
+              handler: handler(realPrefix),
+            };
+          }
 
           return simpleRouteHandler(async (args): Promise<void> => {
             if (args.req.url === undefined) {

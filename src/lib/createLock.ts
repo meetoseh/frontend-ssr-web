@@ -1,6 +1,6 @@
 import { CancelablePromise } from './CancelablePromise';
 import { constructCancelablePromise } from './CancelablePromiseConstructor';
-import { OrderedDictionary } from './OrderedDictionary';
+import { OrderedDictionary } from '../uikit/lib/OrderedDictionary';
 import { createCancelablePromiseFromCallbacks } from './createCancelablePromiseFromCallbacks';
 
 export type AsyncLock = {

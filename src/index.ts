@@ -16,7 +16,7 @@ import {
   createEmptyRootRouter,
   useRouterToRoute,
 } from './routers/lib/router';
-import { Callbacks } from './lib/Callbacks';
+import { Callbacks } from './uikit/lib/Callbacks';
 import { constructCancelablePromise } from './lib/CancelablePromiseConstructor';
 import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
 import allRoutes from './routers/router';
@@ -408,7 +408,7 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
             return;
           }
 
-          addRouteToRootRouter(router, prefixes, {
+          await addRouteToRootRouter(router, prefixes, {
             ...route,
             handler,
             path,
@@ -480,7 +480,7 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
               return;
             }
 
-            addRouteToRootRouter(router, prefixes, {
+            await addRouteToRootRouter(router, prefixes, {
               ...route,
               handler,
               path,

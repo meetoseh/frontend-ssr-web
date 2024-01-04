@@ -1,4 +1,4 @@
-import { Callbacks } from './Callbacks';
+import { Callbacks } from '../uikit/lib/Callbacks';
 import { CancelablePromise } from './CancelablePromise';
 
 /**

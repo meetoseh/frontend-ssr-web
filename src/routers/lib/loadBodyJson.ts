@@ -14,7 +14,7 @@ import { parseContentLength } from './parseContentLength';
 import * as path from 'path';
 import crypto from 'crypto';
 import * as fs from 'fs';
-import { Callbacks } from '../../lib/Callbacks';
+import { Callbacks } from '../../uikit/lib/Callbacks';
 import { colorNow } from '../../logging';
 import chalk from 'chalk';
 import { JSONValue } from './openapi';

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { CancelablePromise } from './lib/CancelablePromise';
-import { Callbacks } from './lib/Callbacks';
+import { Callbacks } from './uikit/lib/Callbacks';
 import chalk from 'chalk';
 import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
 import { createCancelableTimeout } from './lib/createCancelableTimeout';

@@ -81,14 +81,14 @@ export const createEmptyRootRouter = (prefix: string): RootRouter => ({
  * @param route The route to add, where the url to the route is the router's prefix
  *   followed by the path prefixes and then the routes path
  */
-export const addRouteToRootRouter = (
+export const addRouteToRootRouter = async (
   router: RootRouter,
   pathPrefix: string[],
   route: Route
-): void => {
+): Promise<void> => {
   pathPrefix = pathPrefix.filter((part) => part.length > 0);
   if (typeof route.path === 'string') {
-    const handler = route.handler(`${router.prefix}${pathPrefix.join('')}`);
+    const handler = await route.handler(`${router.prefix}${pathPrefix.join('')}`);
     for (const method of route.methods) {
       router.simplePaths[`${method}: ${router.prefix}${pathPrefix.join('')}${route.path}`] = {
         ...route,
@@ -116,7 +116,7 @@ export const addRouteToRootRouter = (
   subrouter.templatedPaths.push({
     ...route,
     path: route.path(subrouter.prefix),
-    handler: route.handler(subrouter.prefix),
+    handler: await route.handler(subrouter.prefix),
     methods: new Set(route.methods),
   });
 };

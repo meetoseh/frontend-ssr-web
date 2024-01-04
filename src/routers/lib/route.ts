@@ -11,6 +11,8 @@ export type RouteDocsGetSitemapEntries = (
   itgs: Itgs
 ) => CancelablePromise<void>;
 
+type PromiseOrSync<T> = T | PromiseLike<T>;
+
 /**
  * Describes a route that can be included within a router.
  */
@@ -77,7 +79,9 @@ export type Route = {
    */
   handler: (
     routerPrefix: string
-  ) => (req: http.IncomingMessage, res: http.ServerResponse) => CancelablePromise<void>;
+  ) => PromiseOrSync<
+    (req: http.IncomingMessage, res: http.ServerResponse) => CancelablePromise<void>
+  >;
 
   /**
    * The documentation to merge into the openapi spec.
@@ -115,8 +119,8 @@ export type Route = {
 };
 
 export type PendingRoute = Omit<Route, 'handler' | 'path'> & {
-  path: string | ((args: CommandLineArgs) => PromiseLike<Route['path']> | Route['path']);
-  handler: (args: CommandLineArgs) => PromiseLike<Route['handler']> | Route['handler'];
+  path: string | ((args: CommandLineArgs) => PromiseOrSync<Route['path']>);
+  handler: (args: CommandLineArgs) => PromiseOrSync<Route['handler']>;
 };
 
 type ArrayOrSingleItem<T> = T | T[];

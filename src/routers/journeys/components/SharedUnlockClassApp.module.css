@@ -1,0 +1,38 @@
+.container {
+  display: grid;
+}
+
+.background {
+  grid-area: 1 / 1 / 1 / 1;
+  background: linear-gradient(0deg, #010101 0%, #273136 37%, #2d2e2e 100%);
+  min-height: 100vh;
+}
+
+.contentContainer {
+  grid-area: 1 / 1 / 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.tablet {
+  display: none;
+}
+
+.mobile {
+  display: block;
+}
+
+@media screen and (min-width: 845px) {
+  .tablet {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .mobile {
+    display: none;
+  }
+}

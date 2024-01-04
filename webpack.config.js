@@ -1,6 +1,7 @@
-import path from 'path'
-import nodeExternals from 'webpack-node-externals'
-import process from 'process'
+import path from 'path';
+import nodeExternals from 'webpack-node-externals';
+import process from 'process';
+import webpack from 'webpack';
 
 const isDev = process.env.ENVIRONMENT === 'dev';
 
@@ -8,9 +9,11 @@ export default {
   mode: isDev ? 'development' : 'production',
   target: 'node',
   externalsPresets: { node: true },
-  externals: [nodeExternals({
-    importType: 'module'
-  })],
+  externals: [
+    nodeExternals({
+      importType: 'module',
+    }),
+  ],
   entry: './src/index.ts',
   output: {
     path: path.resolve('build/server'),
@@ -42,13 +45,19 @@ export default {
       },
       {
         test: /\.module\.css$/i,
-        loader: "css-loader",
+        loader: 'css-loader',
         options: {
           modules: {
             exportOnlyLocals: true,
-          }
-        }
+          },
+        },
       },
     ],
   },
-}
+  plugins: [
+    new webpack.DefinePlugin({
+      document: 'undefined',
+      window: 'undefined',
+    }),
+  ],
+};

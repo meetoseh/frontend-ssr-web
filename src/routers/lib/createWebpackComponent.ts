@@ -181,7 +181,15 @@ hydrateRoot(document, <App {...props} />);
     const compileTimeDefines = {
       'process.env.CLIENT_VISIBLE_ENVIRONMENT': JSON.stringify(process.env.ENVIRONMENT),
       'process.env.CLIENT_VISIBLE_ROOT_FRONTEND_URL': JSON.stringify(process.env.ROOT_FRONTEND_URL),
+      'process.env.CLIENT_VISIBLE_ROOT_BACKEND_URL': JSON.stringify(process.env.ROOT_BACKEND_URL),
+      'process.env.CLIENT_VISIBLE_ROOT_WEBSOCKET_URL': JSON.stringify(
+        process.env.ROOT_WEBSOCKET_URL
+      ),
     };
+    const cssPublicPathForWebpack = cssPublicPath.endsWith('/')
+      ? cssPublicPath
+      : cssPublicPath + '/';
+
     await fs.promises.writeFile(
       webpackConfigFile,
       `// AUTO GENERATED
@@ -192,7 +200,7 @@ const entrypoint = ${JSON.stringify(entrypoint)};
 const bundleDirectory = ${JSON.stringify(bundleDirectory)};
 const bundleNameFormat = ${JSON.stringify(bundleNameFormat)};
 const tsconfig = ${JSON.stringify(tsconfig)};
-const cssPublicPath = ${JSON.stringify(cssPublicPath)};
+const cssPublicPath = ${JSON.stringify(cssPublicPathForWebpack)};
 const webpackMode = ${JSON.stringify(webpackMode)};
 
 export default {

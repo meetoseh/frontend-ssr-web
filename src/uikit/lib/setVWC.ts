@@ -1,5 +1,5 @@
 import { defaultEqualityFn } from '../hooks/useMappedValueWithCallbacks';
-import { WritableValueWithCallbacks } from '../../lib/Callbacks';
+import { WritableValueWithCallbacks } from './Callbacks';
 
 /**
  * Sets the value of a WritableValueWithCallbacks object if it differs

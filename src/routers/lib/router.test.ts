@@ -16,7 +16,7 @@ const args: CommandLineArgs = {
 
 test('root level simple route', async () => {
   const router = createEmptyRootRouter('');
-  addRouteToRootRouter(router, [], {
+  await addRouteToRootRouter(router, [], {
     methods: ['GET'],
     path: '/foo',
     handler: fakeHandler,
@@ -34,7 +34,7 @@ test('root level simple route', async () => {
 test('root level templated route', async () => {
   const router = createEmptyRootRouter('');
   const path = templatedPath(['/', 'uid', '/'])[0];
-  addRouteToRootRouter(router, [], {
+  await addRouteToRootRouter(router, [], {
     methods: ['GET'],
     path,
     handler: fakeHandler,
@@ -51,7 +51,7 @@ test('root level templated route', async () => {
 
 test('direct child simple route', async () => {
   const router = createEmptyRootRouter('');
-  addRouteToRootRouter(router, ['/foo'], {
+  await addRouteToRootRouter(router, ['/foo'], {
     methods: ['GET'],
     path: '/bar',
     handler: fakeHandler,
@@ -70,7 +70,7 @@ test('direct child simple route', async () => {
 test('direct child templated route', async () => {
   const router = createEmptyRootRouter('');
   const path = templatedPath(['/', 'uid', '/'])[0];
-  addRouteToRootRouter(router, ['/foo'], {
+  await addRouteToRootRouter(router, ['/foo'], {
     methods: ['GET'],
     path,
     handler: fakeHandler,
@@ -89,7 +89,7 @@ test('direct child templated route', async () => {
 
 test('indirect child simple route', async () => {
   const router = createEmptyRootRouter('');
-  addRouteToRootRouter(router, ['/foo', '/bar'], {
+  await addRouteToRootRouter(router, ['/foo', '/bar'], {
     methods: ['GET'],
     path: '/baz',
     handler: fakeHandler,
@@ -105,7 +105,7 @@ test('indirect child simple route', async () => {
 test('indirect child templated route', async () => {
   const router = createEmptyRootRouter('');
   const path = templatedPath(['/', 'uid', '/'])[0];
-  addRouteToRootRouter(router, ['/foo', '/bar'], {
+  await addRouteToRootRouter(router, ['/foo', '/bar'], {
     methods: ['GET'],
     path,
     handler: fakeHandler,
@@ -146,8 +146,8 @@ test('routes finish out of order', async () => {
 
   const route1 = createDelayedRoute(200);
   const route2 = createDelayedRoute(100);
-  addRouteToRootRouter(router, [], route1);
-  addRouteToRootRouter(router, [], route2);
+  await addRouteToRootRouter(router, [], route1);
+  await addRouteToRootRouter(router, [], route2);
   const routed = await useRouterToRoute(args, router, 'GET', '/').promise;
   expect(routed).not.toBeNull();
   expect((routed as any).docs[0].templatedRelativePath).toBe(
@@ -157,7 +157,7 @@ test('routes finish out of order', async () => {
 
 test('templated paths within subrouter without prefix', async () => {
   const router = createEmptyRootRouter('');
-  addRouteToRootRouter(router, ['/shared', ''], {
+  await addRouteToRootRouter(router, ['/shared', ''], {
     methods: ['GET'],
     path: () => () => true,
     handler: fakeHandler,

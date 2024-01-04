@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import { randomBytes } from 'crypto';
 import { RqliteParameter } from 'rqdb';
 import { inspect } from 'util';
-import { Callbacks } from '../../../lib/Callbacks';
+import { Callbacks } from '../../../uikit/lib/Callbacks';
 import { createCancelablePromiseFromCallbacks } from '../../../lib/createCancelablePromiseFromCallbacks';
 
 /**

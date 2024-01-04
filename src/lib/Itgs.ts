@@ -1,5 +1,5 @@
 import { RqliteConnection } from 'rqdb';
-import { Callbacks } from './Callbacks';
+import { Callbacks } from '../uikit/lib/Callbacks';
 import { AsyncLock, createLock } from './createLock';
 
 /**

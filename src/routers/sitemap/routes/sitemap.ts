@@ -1,5 +1,5 @@
 import { CommandLineArgs } from '../../../CommandLineArgs';
-import { Callbacks } from '../../../lib/Callbacks';
+import { Callbacks } from '../../../uikit/lib/Callbacks';
 import { CancelablePromise } from '../../../lib/CancelablePromise';
 import { constructCancelablePromise } from '../../../lib/CancelablePromiseConstructor';
 import { Itgs, withItgs } from '../../../lib/Itgs';

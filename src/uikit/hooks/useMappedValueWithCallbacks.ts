@@ -3,7 +3,7 @@ import {
   ValueWithCallbacks,
   createWritableValueWithCallbacks,
   useWritableValueWithCallbacks,
-} from '../../lib/Callbacks';
+} from '../lib/Callbacks';
 
 export type MappedValueWithCallbacksOpts<T, U> = {
   /**

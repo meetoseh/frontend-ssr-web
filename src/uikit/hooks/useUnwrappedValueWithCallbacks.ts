@@ -1,5 +1,5 @@
 import { MutableRefObject, useEffect, useRef, useState } from 'react';
-import { ValueWithCallbacks } from '../../lib/Callbacks';
+import { ValueWithCallbacks } from '../lib/Callbacks';
 import { defaultEqualityFn } from './useMappedValueWithCallbacks';
 
 const notSet = Symbol();

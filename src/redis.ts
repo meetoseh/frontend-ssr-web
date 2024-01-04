@@ -2,7 +2,7 @@ import * as redis from 'redis';
 import { createCancelableTimeout } from './lib/createCancelableTimeout';
 import { CancelablePromise } from './lib/CancelablePromise';
 import { createFakeCancelable } from './lib/createFakeCancelable';
-import { Callbacks } from './lib/Callbacks';
+import { Callbacks } from './uikit/lib/Callbacks';
 import { createCancelablePromiseFromCallbacks } from './lib/createCancelablePromiseFromCallbacks';
 import { copyAndShuffle } from './lib/copyAndShuffle';
 import { colorNow } from './logging';
