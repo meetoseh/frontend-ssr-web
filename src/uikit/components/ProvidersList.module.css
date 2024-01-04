@@ -1,0 +1,40 @@
+.icon {
+  background: no-repeat center center;
+  display: inline-block;
+  vertical-align: middle;
+  content: '';
+  width: 24px;
+  height: 24px;
+  background-size: 100% 100%;
+}
+
+.iconGoogle {
+  composes: icon;
+  width: 18px;
+  height: 19px;
+  background-image: url('../assets/google.svg');
+  margin-right: 12px;
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+.iconSignInWithApple {
+  composes: icon;
+  width: 18px;
+  height: 19px;
+  background-image: url('../assets/apple.svg');
+  margin-right: 12px;
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+.iconDirect,
+.iconDev {
+  composes: icon;
+  width: 20px;
+  height: 18px;
+  background-image: url('../assets/email.svg');
+  margin-right: 12px;
+  padding-top: 0.5px;
+  padding-bottom: 0.5px;
+}

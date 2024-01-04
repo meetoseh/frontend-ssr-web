@@ -1,0 +1,174 @@
+.button {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+
+  padding: 13px 26px;
+  font-family: 'Open Sans', sans-serif;
+  font-style: normal;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.25px;
+  border-radius: 100px;
+  border: 3px solid #446266;
+}
+
+.buttonWithSpinner {
+  position: relative;
+}
+
+.spinnerContainer {
+  position: absolute;
+  top: calc(50% - 12px);
+  left: 13px;
+}
+
+.outlined {
+  background: transparent;
+  color: #446266;
+}
+
+.outlined-white {
+  background: transparent;
+  color: white;
+  border-color: white;
+}
+
+.filled {
+  background: #446266;
+  color: white;
+}
+
+.filled-white {
+  background: white;
+  color: #191c1d;
+  border: 3px solid transparent;
+}
+
+.link,
+.link-small,
+.link-small-upper {
+  background: transparent;
+  color: #446266;
+  border: none;
+}
+.link-white {
+  background: transparent;
+  color: white;
+  border: none;
+}
+
+.link-small {
+  padding: 0;
+}
+
+.link-small-upper {
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 5px;
+}
+
+.button:hover {
+  border: 3px solid #708f94;
+}
+
+.filled:hover {
+  background: #708f94;
+}
+
+.filled-white:hover {
+  background: #fafdfd;
+  border: 3px solid transparent;
+}
+
+.link:hover,
+.link-small:hover,
+.link-small-upper:hover,
+.link-white:hover {
+  color: #708f94;
+  border: none;
+}
+
+.outlined-white:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: white;
+  border: 3px solid white;
+}
+
+.button:active {
+  border: 3px solid #1a383c;
+}
+
+.filled:active {
+  background: #1a383c;
+}
+
+.filled-white:active {
+  background: #c8cdd0;
+}
+
+.link:active,
+.link-small:active,
+.link-small-upper:active {
+  color: #1a383c;
+  border: none;
+}
+
+.link-white:active {
+  color: #c8cdd0;
+  border: none;
+}
+
+.button:focus-visible {
+  border: 3px solid #708f94;
+}
+
+.link:focus-visible,
+.link-small:focus-visible,
+.link-small-upper:focus-visible,
+.link-white:focus-visible {
+  border: none;
+  outline: 3px solid #708f94;
+}
+
+.button:disabled {
+  border: 3px solid #c8cdd0;
+  color: #3f484a;
+  cursor: not-allowed;
+}
+
+.filled:disabled {
+  background: #c8cdd0;
+}
+
+.filled-white:disabled {
+  background: #8b8e90;
+  color: #383838;
+  border: 3px solid #8b8e90;
+}
+
+.outlined-white:disabled {
+  border: 3px solid #3f484a;
+  color: #3f484a;
+}
+
+.link:disabled,
+.link-small:disabled,
+.link-small-upper:disabled,
+.link-white:disabled {
+  border: none;
+  color: #3f484a;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+@media not (prefers-reduced-motion) {
+  .button {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+}

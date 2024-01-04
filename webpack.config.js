@@ -58,6 +58,8 @@ export default {
     new webpack.DefinePlugin({
       document: 'undefined',
       window: 'undefined',
+      localStorage: 'undefined',
+      sessionStorage: 'undefined',
     }),
   ],
 };

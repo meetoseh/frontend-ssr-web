@@ -1,0 +1,47 @@
+.container {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: center;
+  align-items: center;
+  margin-left: -15px;
+  margin-top: -16px;
+}
+
+.container > * {
+  margin-left: 15px;
+  margin-top: 16px;
+}
+
+.iconAnchor {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.icon {
+  background: no-repeat center center;
+  display: inline-block;
+  vertical-align: middle;
+  content: '';
+  background-size: 100% 100%;
+}
+
+.iconApple {
+  composes: icon;
+  background-image: url('../assets/DownloadOnTheAppStore.svg');
+  width: 168px;
+  height: 56px;
+}
+
+.iconGoogle {
+  composes: icon;
+  background-image: url('../assets/GetItOnGooglePlay.svg');
+  width: 180px;
+  height: 53.333px;
+}

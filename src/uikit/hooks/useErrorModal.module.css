@@ -1,0 +1,21 @@
+.title {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #666060;
+}
+
+.subtitle {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 300;
+  margin-bottom: 1rem;
+  color: #666060;
+}
+
+.error {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1rem;
+  font-weight: 400;
+  max-width: 600px;
+}

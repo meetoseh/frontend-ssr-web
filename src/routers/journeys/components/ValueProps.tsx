@@ -6,7 +6,7 @@ export const ValueProps = (): ReactElement => {
     <div className={styles.container}>
       <div className={styles.item}>
         <div className={styles.iconShort} />
-        <div className={styles.text}>Short classes you can fit in anytime, anywhere</div>
+        <div className={styles.text}>Short classes tailored to your schedule</div>
       </div>
       <div className={styles.item}>
         <div className={styles.iconExperts} />

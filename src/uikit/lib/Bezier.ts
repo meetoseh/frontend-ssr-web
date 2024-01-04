@@ -250,7 +250,7 @@ export const ease = new Bezier([
 ]);
 
 (async () => {
-  if (ease.precomputed !== undefined) {
+  if (ease.precomputed !== undefined || localStorage === undefined) {
     return;
   }
 

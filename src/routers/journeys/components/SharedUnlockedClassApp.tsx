@@ -1,7 +1,13 @@
-import { ReactElement, useEffect, useRef } from 'react';
+import { ReactElement, useContext, useEffect, useRef } from 'react';
 import styles from './SharedUnlockClassApp.module.css';
 import { Tablet } from './Tablet';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
+import { useOauthProviderUrlsValueWithCallbacks } from '../../../uikit/hooks/useOauthProviderUrlsValueWithCallbacks';
+import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
+import { ModalContext, Modals, ModalsOutlet } from '../../../uikit/contexts/ModalContext';
+import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
+import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
+import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -49,6 +55,8 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
   const rootFrontendUrl =
     process.env.CLIENT_VISIBLE_ROOT_FRONTEND_URL ?? process.env.ROOT_FRONTEND_URL;
 
+  const modals = useWritableValueWithCallbacks<Modals>(() => []);
+
   const backgroundRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (backgroundRef.current === null) {
@@ -94,24 +102,40 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
           <div className={styles.container}>
             <div className={styles.background} ref={backgroundRef} />
             <div className={styles.contentContainer}>
-              <SharedUnlockedClassBody {...props} />
+              <ModalContext.Provider value={{ modals }}>
+                <SharedUnlockedClassBody {...props} />
+              </ModalContext.Provider>
             </div>
           </div>
+          <ModalsOutlet modals={modals} />
         </div>
       </body>
     </html>
   );
 };
 
-export type SharedUnlockedClassBodyDelegateProps = Omit<SharedUnlockedClassProps, 'stylesheets'>;
+export type SharedUnlockedClassBodyDelegateProps = Omit<SharedUnlockedClassProps, 'stylesheets'> & {
+  signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
+};
 /**
  * Renders the meaningful content that describes and plays the specific class.
  */
 export const SharedUnlockedClassBody = (props: Omit<SharedUnlockedClassProps, 'stylesheets'>) => {
+  const modalContext = useContext(ModalContext);
+  const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [
+    'Google',
+    'SignInWithApple',
+    'Direct',
+  ]);
+
+  const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers);
+
+  useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
+
   return (
     <>
       <div className={styles.tablet}>
-        <Tablet {...props} />
+        <Tablet {...props} signInUrls={signinUrlsVWC} />
       </div>
       <div className={styles.mobile}>
         <h1>MOBILE: {props.title}</h1>

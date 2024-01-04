@@ -10,6 +10,10 @@ import { setVWC } from '../../../uikit/lib/setVWC';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import { useStaleOsehImageOnSwap } from '../../../uikit/images/useStaleOsehImageOnSwap';
 import { OsehImageFromState } from '../../../uikit/images/OsehImageFromState';
+import { Callout } from './Callout';
+import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
+import { LoginOptionsSeparator } from '../../../uikit/components/LoginOptionsSeparator';
+import { ProvidersList } from '../../../uikit/components/ProvidersList';
 
 /**
  * Manages the contents seen on tablet or wider screens
@@ -97,7 +101,24 @@ export const Tablet = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
         />
       </div>
       <div className={styles.rightColumn}>
-        <ValueProps />
+        <div className={styles.valuePropsContainer}>
+          <ValueProps />
+        </div>
+        <div className={styles.calloutContainer}>
+          <Callout />
+        </div>
+        <div className={styles.downloadContainer}>
+          <DownloadAppLinks />
+        </div>
+        <div className={styles.loginOptionsSeparatorContainer}>
+          <LoginOptionsSeparator />
+        </div>
+        <div className={styles.providerListContainer}>
+          <RenderGuardedComponent
+            props={props.signInUrls}
+            component={(signInUrls) => <ProvidersList items={signInUrls} />}
+          />
+        </div>
       </div>
     </>
   );

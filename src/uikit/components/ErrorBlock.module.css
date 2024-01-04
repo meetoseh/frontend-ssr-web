@@ -1,0 +1,21 @@
+.container {
+  background: #ba1a1a;
+  border-radius: 10px;
+  width: 100%;
+  padding: 20px;
+  color: white;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  line-height: 32px;
+  letter-spacing: 0.25px;
+}
+
+.container p:last-child {
+  margin-bottom: 0;
+}
+
+.container a {
+  color: white;
+  text-decoration: underline;
+  font-weight: 600;
+}

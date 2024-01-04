@@ -6,3 +6,31 @@
 .leftColumn {
   margin-right: 40px;
 }
+
+.leftColumn img {
+  border-radius: 10px;
+}
+
+.rightColumn {
+  max-width: 383px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.calloutContainer {
+  margin-top: 20px;
+}
+
+.downloadContainer {
+  margin-top: 32px;
+}
+
+.loginOptionsSeparatorContainer {
+  margin-top: 16px;
+}
+
+.providerListContainer {
+  margin-top: 16px;
+}
