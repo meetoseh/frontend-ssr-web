@@ -132,8 +132,10 @@ SELECT
   journeys.title,
   journeys.description,
   image_file_exports.thumbhash,
-  image_files.uid
-FROM journeys, journey_slugs AS canonical_journey_slugs, image_files, image_file_exports
+  image_files.uid,
+  instructors.name,
+  content_files.duration_seconds
+FROM journeys, journey_slugs AS canonical_journey_slugs, image_files, image_file_exports, instructors, content_files
 WHERE
   journeys.id = canonical_journey_slugs.journey_id
   AND NOT EXISTS (
@@ -173,6 +175,8 @@ WHERE
       ife.id ASC
     LIMIT 1
   )
+  AND content_files.id = journeys.video_content_file_id
+  AND instructors.id = journeys.instructor_id
                 `,
                 [slug],
                 {
@@ -196,6 +200,8 @@ WHERE
                 description,
                 imageThumbhashBase64,
                 imageUid,
+                instructor,
+                durationSeconds,
               ] = response.results[0];
               if (slug !== canonicalSlug) {
                 const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
@@ -228,6 +234,8 @@ WHERE
                 },
                 title,
                 description,
+                instructor,
+                durationSeconds,
                 stylesheets,
               };
             } finally {
@@ -281,8 +289,10 @@ WHERE
     journey_slugs.slug,
     journeys.uid,
     journeys.title,
-    journeys.description
-  FROM journey_slugs, journeys
+    journeys.description,
+    instructors.name,
+    content_files.duration_seconds
+  FROM journey_slugs, journeys, instructors, content_files
   WHERE
     journey_slugs.journey_id IS NOT NULL
     AND journey_slugs.journey_id = journeys.id
@@ -333,6 +343,8 @@ WHERE
         )
       )
     )
+    AND content_files.id = journeys.video_content_file_id
+    AND instructors.id = journeys.instructor_id
   ORDER BY journey_slugs.slug ASC
   LIMIT 100
                   `,
@@ -354,7 +366,7 @@ WHERE
               }
 
               const entries = response.results.map(
-                ([slug, uid, title, description]): SitemapEntry => ({
+                ([slug, uid, title, description, instructor, durationSeconds]): SitemapEntry => ({
                   path: `${routerPrefix}/${slug}`,
                   significantContentSHA512: hashElementForSitemap(
                     <SharedUnlockedClassBody
@@ -364,6 +376,8 @@ WHERE
                       imageThumbhashDataUrl=""
                       backgroundImage={{ uid: '', jwt: '' }}
                       slug={slug}
+                      instructor={instructor}
+                      durationSeconds={durationSeconds}
                     />
                   ),
                 })

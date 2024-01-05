@@ -1,4 +1,4 @@
-import { ReactElement, useEffect } from 'react';
+import { ReactElement, useEffect, useMemo } from 'react';
 import styles from './Tablet.module.css';
 import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
 import { ValueProps } from './ValueProps';
@@ -79,26 +79,65 @@ export const Tablet = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
     [imageProps, props.backgroundImage]
   );
 
+  const totalTime = useMemo(() => {
+    const minutes = Math.floor(props.durationSeconds / 60);
+    const seconds = Math.floor(props.durationSeconds % 60);
+
+    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
+  }, [props.durationSeconds]);
+
   return (
     <>
       <div className={styles.leftColumn}>
-        <RenderGuardedComponent
-          props={imageState}
-          component={(state) => {
-            if (state.loading) {
-              return (
-                <img
-                  className={styles.backgroundImage}
-                  src={props.imageThumbhashDataUrl}
-                  width="375px"
-                  height="667px"
-                />
-              );
-            }
+        <div className={styles.playerBackground}>
+          <RenderGuardedComponent
+            props={imageState}
+            component={(state) => {
+              if (state.loading) {
+                return (
+                  <img
+                    className={styles.backgroundImage}
+                    src={props.imageThumbhashDataUrl}
+                    width="375px"
+                    height="667px"
+                  />
+                );
+              }
 
-            return <OsehImageFromState {...state} />;
-          }}
-        />
+              return <OsehImageFromState {...state} />;
+            }}
+          />
+        </div>
+        <div className={styles.playerPlayContainer}>
+          <div className={styles.playerPlayButton}>
+            <div className={styles.iconPlay} />
+          </div>
+        </div>
+        <div className={styles.playerBottomContents}>
+          <div className={styles.playerControlsContainer}>
+            <div className={styles.playerTitleAndInstructorContainer}>
+              <div className={styles.playerInstructor}>{props.instructor}</div>
+              <div className={styles.playerTitle}>{props.title}</div>
+            </div>
+            <div className={styles.playerIconButtonsContainer}>
+              <div className={styles.playerIconButton}>
+                <div className={styles.iconMute} />
+              </div>
+              <div className={styles.playerIconButton}>
+                <div className={styles.iconClosedCaptions} />
+              </div>
+            </div>
+          </div>
+          <div className={styles.playerProgressContainer}>
+            <div className={styles.playerProgressFull} style={{ width: '43%' }} />
+            <div className={styles.playerProgressDot} />
+            <div className={styles.playerProgressEmpty} />
+          </div>
+          <div className={styles.playerDurationContainer}>
+            <div className={styles.playerCurrentTime}>0:45</div>
+            <div className={styles.playerTotalTime}>{totalTime}</div>
+          </div>
+        </div>
       </div>
       <div className={styles.rightColumn}>
         <div className={styles.valuePropsContainer}>

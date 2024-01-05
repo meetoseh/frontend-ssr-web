@@ -31,6 +31,16 @@ export type SharedUnlockedClassProps = {
   description: string;
 
   /**
+   * The name of the instructor for the class
+   */
+  instructor: string;
+
+  /**
+   * The approximate duration of the class, in seconds
+   */
+  durationSeconds: number;
+
+  /**
    * The background image of the journey, as a data URL
    * https://evanw.github.io/thumbhash/
    */
