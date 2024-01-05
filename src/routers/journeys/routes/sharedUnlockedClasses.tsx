@@ -18,6 +18,7 @@ import { finishWithEncodedServerResponse } from '../../lib/acceptEncoding';
 import { Readable } from 'stream';
 import { thumbHashToDataURL } from 'thumbhash';
 import { createImageFileJWT } from '../../../lib/createImageFileJWT';
+import { createContentFileJWT } from '../../../lib/createContentFileJWT';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -134,7 +135,8 @@ SELECT
   image_file_exports.thumbhash,
   image_files.uid,
   instructors.name,
-  content_files.duration_seconds
+  content_files.duration_seconds,
+  content_files.uid
 FROM journeys, journey_slugs AS canonical_journey_slugs, image_files, image_file_exports, instructors, content_files
 WHERE
   journeys.id = canonical_journey_slugs.journey_id
@@ -175,7 +177,7 @@ WHERE
       ife.id ASC
     LIMIT 1
   )
-  AND content_files.id = journeys.video_content_file_id
+  AND content_files.id = journeys.audio_content_file_id
   AND instructors.id = journeys.instructor_id
                 `,
                 [slug],
@@ -202,6 +204,7 @@ WHERE
                 imageUid,
                 instructor,
                 durationSeconds,
+                audioUid,
               ] = response.results[0];
               if (slug !== canonicalSlug) {
                 const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
@@ -223,6 +226,7 @@ WHERE
                 Buffer.from(imageThumbhashBase64, 'base64url')
               );
               const imageJwt = await createImageFileJWT(imageUid);
+              const audioJwt = await createContentFileJWT(audioUid);
 
               return {
                 uid,
@@ -231,6 +235,10 @@ WHERE
                 backgroundImage: {
                   uid: imageUid,
                   jwt: imageJwt,
+                },
+                audio: {
+                  uid: audioUid,
+                  jwt: audioJwt,
                 },
                 title,
                 description,
@@ -375,6 +383,7 @@ WHERE
                       description={description}
                       imageThumbhashDataUrl=""
                       backgroundImage={{ uid: '', jwt: '' }}
+                      audio={{ uid: '', jwt: '' }}
                       slug={slug}
                       instructor={instructor}
                       durationSeconds={durationSeconds}

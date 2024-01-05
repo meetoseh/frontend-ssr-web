@@ -30,10 +30,12 @@
   appearance: none;
   text-decoration: none;
   text-align: center;
-  padding: 15px 15px 15px 17px;
+  width: 50px;
+  height: 50px;
   border-radius: 100%;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
+  border: none;
 
   display: flex;
   justify-content: center;
@@ -55,6 +57,14 @@
   background-image: url('../assets/play.svg');
   width: 18px;
   height: 20px;
+  margin-left: 2px;
+}
+
+.iconPause {
+  composes: icon;
+  background-image: url('../assets/pause.svg');
+  width: 15px;
+  height: 25px;
 }
 
 .bottomContents {
@@ -103,16 +113,27 @@
   flex-flow: row nowrap;
   justify-content: center;
   align-items: stretch;
+  margin-right: -8px;
 }
 
 .button {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  border: none;
+  background: none;
+
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 0 8px;
 }
 
 .button:not(:last-child) {
-  margin-right: 16px;
+  margin-right: 8px;
 }
 
 .iconMute {
@@ -120,6 +141,13 @@
   background-image: url('../assets/mute.svg');
   width: 18px;
   height: 15px;
+}
+
+.iconUnmute {
+  composes: icon;
+  background-image: url('../assets/unmute.svg');
+  width: 18px;
+  height: 16px;
 }
 
 .iconClosedCaptions {
@@ -130,6 +158,13 @@
 }
 
 .progressContainer {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  border: none;
+  background: none;
+
   margin-top: 16px;
   display: flex;
   flex-flow: row nowrap;
@@ -176,4 +211,10 @@
   font-style: normal;
   font-weight: 400;
   line-height: 130%;
+}
+
+@media screen and (min-width: 845px) {
+  .background img {
+    border-radius: 10px;
+  }
 }

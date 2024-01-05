@@ -9,6 +9,7 @@ import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
 import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
 import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { Mobile } from './Mobile';
+import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -51,6 +52,11 @@ export type SharedUnlockedClassProps = {
    * The darkened background image for the journey
    */
   backgroundImage: OsehImageRef;
+
+  /**
+   * The audio for the journey
+   */
+  audio: OsehContentRef;
 
   /**
    * The stylesheets required for this page, created by webpack
