@@ -1,0 +1,179 @@
+.container {
+  display: grid;
+  grid-area: 1 / 1 / 1 / 1;
+  margin: 0;
+  padding: 0;
+}
+
+.background {
+  grid-area: 1 / 1 / 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.placeholder {
+  contain: size;
+  width: 100%;
+}
+
+.playContainer {
+  grid-area: 1 / 1 / 1 / 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.playButton {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  text-align: center;
+  padding: 15px 15px 15px 17px;
+  border-radius: 100%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon {
+  background: no-repeat center center;
+  display: inline-block;
+  vertical-align: middle;
+  content: '';
+  width: 20px;
+  height: 20px;
+  background-size: 100% 100%;
+}
+
+.iconPlay {
+  composes: icon;
+  background-image: url('../assets/play.svg');
+  width: 18px;
+  height: 20px;
+}
+
+.bottomContents {
+  grid-area: 1 / 1 / 1 / 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+.controlsContainer {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.titleAndInstructorContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.instructor {
+  color: #c8cdd0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.title {
+  color: #eaeaeb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 17px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 120%;
+}
+
+.buttonsContainer {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.button:not(:last-child) {
+  margin-right: 16px;
+}
+
+.iconMute {
+  composes: icon;
+  background-image: url('../assets/mute.svg');
+  width: 18px;
+  height: 15px;
+}
+
+.iconClosedCaptions {
+  composes: icon;
+  background-image: url('../assets/closed-captions.svg');
+  width: 21px;
+  height: 21px;
+}
+
+.progressContainer {
+  margin-top: 16px;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.progressFull {
+  height: 3px;
+  background: #eaeaeb;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.progressDot {
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  margin-right: -4px;
+  border-radius: 100%;
+  flex-grow: 0;
+  flex-shrink: 0;
+  background: #eaeaeb;
+}
+
+.progressEmpty {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  flex-grow: 1;
+}
+
+.durationContainer {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.currentTime,
+.totalTime {
+  color: #c8cdd0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 130%;
+}

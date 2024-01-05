@@ -49,5 +49,5 @@
   font-weight: 400;
   line-height: 120%;
   color: #eaeaeb;
-  width: 380px;
+  max-width: 380px;
 }

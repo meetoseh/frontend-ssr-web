@@ -22,6 +22,7 @@
 
 .mobile {
   display: block;
+  width: 100%;
 }
 
 @media screen and (min-width: 845px) {

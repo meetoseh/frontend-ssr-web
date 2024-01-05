@@ -8,6 +8,7 @@ import { ModalContext, Modals, ModalsOutlet } from '../../../uikit/contexts/Moda
 import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
 import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
 import { OauthProvider } from '../../../uikit/lib/OauthProvider';
+import { Mobile } from './Mobile';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -148,8 +149,7 @@ export const SharedUnlockedClassBody = (props: Omit<SharedUnlockedClassProps, 's
         <Tablet {...props} signInUrls={signinUrlsVWC} />
       </div>
       <div className={styles.mobile}>
-        <h1>MOBILE: {props.title}</h1>
-        <p>{props.description}</p>
+        <Mobile {...props} signInUrls={signinUrlsVWC} />
       </div>
     </>
   );
