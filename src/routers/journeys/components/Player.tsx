@@ -39,6 +39,13 @@ const showEarlySeconds = fadeTimeSeconds;
 const holdLateSeconds = 3 + fadeTimeSeconds;
 
 /**
+ * In order to prevent cc from shifting, we will move the end of a phrase
+ * up to this much earlier to prevent it from overlapping with the start
+ * of the next phrase
+ */
+const maximumAdjustmentToAvoidMultipleOnScreen = holdLateSeconds + 1;
+
+/**
  * Displays the player for the class. Must be in a container with an explicit
  * width and height and a grid with 1 column and 1 row filling the container
  */
@@ -148,14 +155,51 @@ export const Player = (
     progressSeconds: 0,
     index: 0,
   });
+
+  const adjustedTranscript = useMappedValueWithCallbacks(props.transcript, (t) => {
+    if (t.type !== 'success' || t.transcript.phrases.length < 1) {
+      return t;
+    }
+
+    const phrases = t.transcript.phrases;
+    const adjustedPhrases = [];
+
+    for (let i = 0; i < phrases.length - 1; i++) {
+      const domEndOfThisPhrase = phrases[i].endsAt + holdLateSeconds;
+      const domStartOfNextPhrase = phrases[i + 1].startsAt - showEarlySeconds;
+      let adjustedEndsAt = phrases[i].endsAt;
+      if (
+        domEndOfThisPhrase > domStartOfNextPhrase &&
+        domEndOfThisPhrase - domStartOfNextPhrase < maximumAdjustmentToAvoidMultipleOnScreen
+      ) {
+        adjustedEndsAt -= domEndOfThisPhrase - domStartOfNextPhrase;
+        if (adjustedEndsAt < phrases[i].startsAt) {
+          adjustedEndsAt = phrases[i].startsAt;
+        }
+      }
+      adjustedPhrases.push({ ...phrases[i], endsAt: adjustedEndsAt });
+    }
+    adjustedPhrases.push(phrases[phrases.length - 1]);
+
+    console.log('phrases after adjustment:', adjustedPhrases);
+
+    return {
+      ...t,
+      transcript: {
+        ...t.transcript,
+        phrases: adjustedPhrases,
+      },
+    };
+  });
+
   const currentTranscriptPhrases = useMappedValuesWithCallbacks(
-    [closedCaptioningDesired, props.transcript, progressVWC],
+    [closedCaptioningDesired, adjustedTranscript, progressVWC],
     (): { phrase: OsehTranscriptPhrase; id: number }[] => {
       if (closedCaptioningDesired.get() === 'none') {
         return [];
       }
 
-      const transcriptRaw = props.transcript.get();
+      const transcriptRaw = adjustedTranscript.get();
       if (transcriptRaw.type !== 'success') {
         return [];
       }
@@ -198,6 +242,10 @@ export const Player = (
       ) {
         result.push({ phrase: phrases[index], id: index });
         index++;
+      }
+
+      if (result.length > 1) {
+        console.log('multiple phrases on screen @ progressSeconds=', progressSeconds, result);
       }
       return result;
     }
@@ -500,11 +548,8 @@ const TranscriptPhrase = (
     useCallback(
       (progress) => {
         const progressSeconds = progress * props.durationSeconds;
-        const timeUntilEnd = props.phrase.endsAt - progressSeconds;
-
-        const opacityAccordingToStart = 1;
-        const opacityAccordingToEnd = timeUntilEnd < fadeTimeSeconds ? 0 : 1;
-        return Math.min(opacityAccordingToStart, opacityAccordingToEnd);
+        const timeUntilEnd = props.phrase.endsAt + holdLateSeconds - progressSeconds;
+        return timeUntilEnd < fadeTimeSeconds ? 0 : 1;
       },
       [props.durationSeconds, props.phrase]
     )
