@@ -181,8 +181,6 @@ export const Player = (
     }
     adjustedPhrases.push(phrases[phrases.length - 1]);
 
-    console.log('phrases after adjustment:', adjustedPhrases);
-
     return {
       ...t,
       transcript: {
@@ -242,10 +240,6 @@ export const Player = (
       ) {
         result.push({ phrase: phrases[index], id: index });
         index++;
-      }
-
-      if (result.length > 1) {
-        console.log('multiple phrases on screen @ progressSeconds=', progressSeconds, result);
       }
       return result;
     }
