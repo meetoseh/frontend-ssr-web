@@ -76,6 +76,25 @@
   align-items: stretch;
 }
 
+.transcriptContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.transcriptPhrase {
+  color: #eaeaeb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 14.4px;
+  padding: 3px;
+  border-radius: 3px;
+  background: rgba(25, 28, 29, 0.5);
+}
+
 .controlsContainer {
   display: flex;
   flex-flow: row nowrap;
@@ -96,7 +115,7 @@
   font-size: 14px;
   font-style: normal;
   font-weight: 400;
-  line-height: normal;
+  line-height: 19.07px;
 }
 
 .title {
@@ -105,7 +124,7 @@
   font-size: 17px;
   font-style: normal;
   font-weight: 600;
-  line-height: 120%;
+  line-height: 20.4px;
 }
 
 .buttonsContainer {
@@ -155,6 +174,11 @@
   background-image: url('../assets/closed-captions.svg');
   width: 21px;
   height: 21px;
+}
+
+.iconNoClosedCaptions {
+  composes: iconClosedCaptions;
+  opacity: 50%;
 }
 
 .progressContainer {

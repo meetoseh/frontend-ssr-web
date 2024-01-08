@@ -10,6 +10,13 @@ import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
 import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { Mobile } from './Mobile';
 import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
+import { OsehTranscriptRef } from '../../../uikit/transcripts/OsehTranscriptRef';
+import {
+  OsehTranscriptResult,
+  useOsehTranscriptValueWithCallbacks,
+} from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
+import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
+import { setVWC } from '../../../uikit/lib/setVWC';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -52,6 +59,11 @@ export type SharedUnlockedClassProps = {
    * The darkened background image for the journey
    */
   backgroundImage: OsehImageRef;
+
+  /**
+   * The transcript for the journey, if available
+   */
+  transcriptRef: OsehTranscriptRef | null;
 
   /**
    * The audio for the journey
@@ -133,6 +145,7 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
 
 export type SharedUnlockedClassBodyDelegateProps = Omit<SharedUnlockedClassProps, 'stylesheets'> & {
   signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
+  transcript: ValueWithCallbacks<OsehTranscriptResult>;
 };
 /**
  * Renders the meaningful content that describes and plays the specific class.
@@ -146,16 +159,26 @@ export const SharedUnlockedClassBody = (props: Omit<SharedUnlockedClassProps, 's
   ]);
 
   const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers);
+  const transcript = useOsehTranscriptValueWithCallbacks({
+    type: 'react-rerender',
+    props: props.transcriptRef,
+  });
+  const transcriptErrorVWC = useWritableValueWithCallbacks<ReactElement | null>(() => null);
+  useValueWithCallbacksEffect(transcript, (t) => {
+    setVWC(transcriptErrorVWC, t.type === 'error' ? t.error : null);
+    return undefined;
+  });
 
   useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
+  useErrorModal(modalContext.modals, transcriptErrorVWC, 'Loading transcript');
 
   return (
     <>
       <div className={styles.tablet}>
-        <Tablet {...props} signInUrls={signinUrlsVWC} />
+        <Tablet {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
       </div>
       <div className={styles.mobile}>
-        <Mobile {...props} signInUrls={signinUrlsVWC} />
+        <Mobile {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
       </div>
     </>
   );

@@ -15,6 +15,8 @@ import { useOsehContentTarget } from '../../../uikit/content/useOsehContentTarge
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { ErrorBlock } from '../../../uikit/components/ErrorBlock';
 import { InlineOsehSpinner } from '../../../uikit/components/InlineOsehSpinner';
+import { useMappedValuesWithCallbacks } from '../../../uikit/hooks/useMappedValuesWithCallbacks';
+import { OsehTranscriptPhrase } from '../../../uikit/transcripts/OsehTranscript';
 
 type Size = { width: number; height: number };
 
@@ -127,6 +129,63 @@ export const Player = (
     () => 'loading'
   );
   const muted = useWritableValueWithCallbacks<boolean>(() => false);
+  const closedCaptioningDesired = useWritableValueWithCallbacks<boolean>(() => true);
+
+  const transcriptSearchIndexHint = useRef<{ progressSeconds: number; index: number }>({
+    progressSeconds: 0,
+    index: 0,
+  });
+  const currentTranscriptPhrases = useMappedValuesWithCallbacks(
+    [closedCaptioningDesired, props.transcript, progressVWC],
+    (): { phrase: OsehTranscriptPhrase; id: number }[] => {
+      if (!closedCaptioningDesired.get()) {
+        return [];
+      }
+
+      const transcriptRaw = props.transcript.get();
+      if (transcriptRaw.type !== 'success') {
+        return [];
+      }
+
+      const phrases = transcriptRaw.transcript.phrases;
+      const progress = progressVWC.get();
+      const progressSeconds = progress * props.durationSeconds;
+      const hint = transcriptSearchIndexHint.current;
+      if (hint.progressSeconds < progressSeconds) {
+        hint.progressSeconds = 0;
+        hint.index = 0;
+      }
+
+      if (hint.index >= phrases.length) {
+        return [];
+      }
+
+      while (
+        hint.index < phrases.length &&
+        phrases[hint.index].startsAt < progressSeconds &&
+        phrases[hint.index].endsAt < progressSeconds
+      ) {
+        hint.index++;
+      }
+      hint.progressSeconds =
+        hint.index < phrases.length ? phrases[hint.index].startsAt : phrases[hint.index - 1].endsAt;
+      if (hint.index >= phrases.length) {
+        return [];
+      }
+
+      const result: { phrase: OsehTranscriptPhrase; id: number }[] = [];
+      let index = hint.index;
+      while (
+        index < phrases.length &&
+        phrases[index].startsAt < progressSeconds &&
+        phrases[index].endsAt > progressSeconds
+      ) {
+        result.push({ phrase: phrases[index], id: index });
+        index++;
+      }
+      return result;
+    }
+  );
 
   useValueWithCallbacksEffect(audioContent, (content) => {
     if (content.error !== null) {
@@ -247,6 +306,11 @@ export const Player = (
     content.audio.currentTime = seekingTo;
   }, []);
 
+  const onClosedCaptioningClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setVWC(closedCaptioningDesired, !closedCaptioningDesired.get());
+  }, []);
+
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.background}>
@@ -292,6 +356,22 @@ export const Player = (
         </button>
       </div>
       <div className={styles.bottomContents}>
+        {props.transcriptRef !== null && (
+          <div className={styles.transcriptContainer}>
+            <RenderGuardedComponent
+              props={currentTranscriptPhrases}
+              component={(phrases) => (
+                <>
+                  {phrases.map(({ phrase, id }) => (
+                    <div className={styles.transcriptPhrase} key={id}>
+                      {phrase.phrase}
+                    </div>
+                  ))}
+                </>
+              )}
+            />
+          </div>
+        )}
         <div className={styles.controlsContainer}>
           <div className={styles.titleAndInstructorContainer}>
             <div className={styles.instructor}>{props.instructor}</div>
@@ -320,9 +400,18 @@ export const Player = (
                 }}
               />
             </button>
-            <div className={styles.button}>
-              <div className={styles.iconClosedCaptions} />
-            </div>
+            {props.transcriptRef !== null && (
+              <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
+                <RenderGuardedComponent
+                  props={closedCaptioningDesired}
+                  component={(desired) => (
+                    <div
+                      className={desired ? styles.iconClosedCaptions : styles.iconNoClosedCaptions}
+                    />
+                  )}
+                />
+              </button>
+            )}
           </div>
         </div>
         <button

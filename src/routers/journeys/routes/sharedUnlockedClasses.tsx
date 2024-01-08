@@ -19,6 +19,7 @@ import { Readable } from 'stream';
 import { thumbHashToDataURL } from 'thumbhash';
 import { createImageFileJWT } from '../../../lib/createImageFileJWT';
 import { createContentFileJWT } from '../../../lib/createContentFileJWT';
+import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -136,8 +137,25 @@ SELECT
   image_files.uid,
   instructors.name,
   content_files.duration_seconds,
-  content_files.uid
+  content_files.uid,
+  transcripts.uid
 FROM journeys, journey_slugs AS canonical_journey_slugs, image_files, image_file_exports, instructors, content_files
+LEFT OUTER JOIN content_file_transcripts ON (
+  content_file_transcripts.content_file_id = content_files.id
+  AND NOT EXISTS (
+    SELECT 1 FROM content_file_transcripts AS cft
+    WHERE
+      cft.content_file_id = content_files.id
+      AND (
+        cft.created_at > content_file_transcripts.created_at
+        OR (
+          cft.created_at = content_file_transcripts.created_at
+          AND cft.uid < content_file_transcripts.uid
+        )
+      )
+  )
+)
+LEFT OUTER JOIN transcripts ON transcripts.id = content_file_transcripts.transcript_id
 WHERE
   journeys.id = canonical_journey_slugs.journey_id
   AND NOT EXISTS (
@@ -205,6 +223,7 @@ WHERE
                 instructor,
                 durationSeconds,
                 audioUid,
+                transcriptUid,
               ] = response.results[0];
               if (slug !== canonicalSlug) {
                 const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
@@ -227,6 +246,8 @@ WHERE
               );
               const imageJwt = await createImageFileJWT(imageUid);
               const audioJwt = await createContentFileJWT(audioUid);
+              const transcriptJwt =
+                transcriptUid === null ? null : await createTranscriptJWT(transcriptUid);
 
               return {
                 uid,
@@ -240,6 +261,13 @@ WHERE
                   uid: audioUid,
                   jwt: audioJwt,
                 },
+                transcriptRef:
+                  transcriptUid === null || transcriptJwt === null
+                    ? null
+                    : {
+                        uid: transcriptUid,
+                        jwt: transcriptJwt,
+                      },
                 title,
                 description,
                 instructor,
@@ -387,6 +415,7 @@ WHERE
                       slug={slug}
                       instructor={instructor}
                       durationSeconds={durationSeconds}
+                      transcriptRef={null}
                     />
                   ),
                 })
