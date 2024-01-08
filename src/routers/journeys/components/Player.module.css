@@ -81,6 +81,9 @@
   flex-direction: column;
   justify-content: flex-end;
   align-items: flex-start;
+  margin-left: -3px;
+  width: calc(100% + 3px);
+  margin-bottom: 7px;
 }
 
 .transcriptPhrase {
@@ -93,6 +96,11 @@
   padding: 3px;
   border-radius: 3px;
   background: rgba(25, 28, 29, 0.5);
+}
+
+.transcriptContainer__big .transcriptPhrase {
+  font-size: 24px;
+  line-height: 32px;
 }
 
 .controlsContainer {
@@ -176,9 +184,13 @@
   height: 21px;
 }
 
-.iconNoClosedCaptions {
-  composes: iconClosedCaptions;
+.iconClosedCaptions.iconClosedCaptions__none {
   opacity: 50%;
+}
+
+.iconClosedCaptions.iconClosedCaptions__big {
+  width: 31.5px;
+  height: 31.5px;
 }
 
 .progressContainer {

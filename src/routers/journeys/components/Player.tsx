@@ -2,7 +2,7 @@ import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import styles from './Player.module.css';
 import assistiveStyles from '../../../uikit/styles/assistive.module.css';
 import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
-import { useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
+import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
 import { useOsehImageStateRequestHandler } from '../../../uikit/images/useOsehImageStateRequestHandler';
 import { useStaleOsehImageOnSwap } from '../../../uikit/images/useStaleOsehImageOnSwap';
 import { useOsehImageStateValueWithCallbacks } from '../../../uikit/images/useOsehImageStateValueWithCallbacks';
@@ -17,6 +17,10 @@ import { ErrorBlock } from '../../../uikit/components/ErrorBlock';
 import { InlineOsehSpinner } from '../../../uikit/components/InlineOsehSpinner';
 import { useMappedValuesWithCallbacks } from '../../../uikit/hooks/useMappedValuesWithCallbacks';
 import { OsehTranscriptPhrase } from '../../../uikit/transcripts/OsehTranscript';
+import { combineClasses } from '../../../uikit/lib/combineClasses';
+import { useAnimatedValueWithCallbacks } from '../../../uikit/anim/useAnimatedValueWithCallbacks';
+import { BezierAnimator } from '../../../uikit/anim/AnimationLoop';
+import { ease } from '../../../uikit/lib/Bezier';
 
 type Size = { width: number; height: number };
 
@@ -26,6 +30,13 @@ const areSizesEqual = (a: Size | null, b: Size | null): boolean => {
   }
   return a.width === b.width && a.height === b.height;
 };
+
+type ClosedCaptioningDesired = 'none' | 'small' | 'big';
+const CLOSED_CAPTIONING_DESIRED_VALUES: ClosedCaptioningDesired[] = ['none', 'small', 'big'];
+
+const fadeTimeSeconds = 0.5;
+const showEarlySeconds = fadeTimeSeconds;
+const holdLateSeconds = 5 + fadeTimeSeconds;
 
 /**
  * Displays the player for the class. Must be in a container with an explicit
@@ -129,7 +140,9 @@ export const Player = (
     () => 'loading'
   );
   const muted = useWritableValueWithCallbacks<boolean>(() => false);
-  const closedCaptioningDesired = useWritableValueWithCallbacks<boolean>(() => true);
+  const closedCaptioningDesired = useWritableValueWithCallbacks<ClosedCaptioningDesired>(
+    () => 'small'
+  );
 
   const transcriptSearchIndexHint = useRef<{ progressSeconds: number; index: number }>({
     progressSeconds: 0,
@@ -138,7 +151,7 @@ export const Player = (
   const currentTranscriptPhrases = useMappedValuesWithCallbacks(
     [closedCaptioningDesired, props.transcript, progressVWC],
     (): { phrase: OsehTranscriptPhrase; id: number }[] => {
-      if (!closedCaptioningDesired.get()) {
+      if (closedCaptioningDesired.get() === 'none') {
         return [];
       }
 
@@ -151,7 +164,8 @@ export const Player = (
       const progress = progressVWC.get();
       const progressSeconds = progress * props.durationSeconds;
       const hint = transcriptSearchIndexHint.current;
-      if (hint.progressSeconds < progressSeconds) {
+
+      if (hint.progressSeconds > progressSeconds) {
         hint.progressSeconds = 0;
         hint.index = 0;
       }
@@ -162,13 +176,15 @@ export const Player = (
 
       while (
         hint.index < phrases.length &&
-        phrases[hint.index].startsAt < progressSeconds &&
-        phrases[hint.index].endsAt < progressSeconds
+        phrases[hint.index].startsAt - showEarlySeconds < progressSeconds &&
+        phrases[hint.index].endsAt + holdLateSeconds < progressSeconds
       ) {
         hint.index++;
       }
       hint.progressSeconds =
-        hint.index < phrases.length ? phrases[hint.index].startsAt : phrases[hint.index - 1].endsAt;
+        hint.index < phrases.length
+          ? phrases[hint.index].startsAt - showEarlySeconds
+          : phrases[hint.index - 1].endsAt + holdLateSeconds;
       if (hint.index >= phrases.length) {
         return [];
       }
@@ -177,8 +193,8 @@ export const Player = (
       let index = hint.index;
       while (
         index < phrases.length &&
-        phrases[index].startsAt < progressSeconds &&
-        phrases[index].endsAt > progressSeconds
+        phrases[index].startsAt - showEarlySeconds < progressSeconds &&
+        phrases[index].endsAt + holdLateSeconds > progressSeconds
       ) {
         result.push({ phrase: phrases[index], id: index });
         index++;
@@ -308,7 +324,15 @@ export const Player = (
 
   const onClosedCaptioningClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setVWC(closedCaptioningDesired, !closedCaptioningDesired.get());
+
+    const current = closedCaptioningDesired.get();
+    setVWC(
+      closedCaptioningDesired,
+      CLOSED_CAPTIONING_DESIRED_VALUES[
+        (CLOSED_CAPTIONING_DESIRED_VALUES.indexOf(current) + 1) %
+          CLOSED_CAPTIONING_DESIRED_VALUES.length
+      ]
+    );
   }, []);
 
   return (
@@ -357,20 +381,33 @@ export const Player = (
       </div>
       <div className={styles.bottomContents}>
         {props.transcriptRef !== null && (
-          <div className={styles.transcriptContainer}>
-            <RenderGuardedComponent
-              props={currentTranscriptPhrases}
-              component={(phrases) => (
-                <>
-                  {phrases.map(({ phrase, id }) => (
-                    <div className={styles.transcriptPhrase} key={id}>
-                      {phrase.phrase}
-                    </div>
-                  ))}
-                </>
-              )}
-            />
-          </div>
+          <RenderGuardedComponent
+            props={closedCaptioningDesired}
+            component={(desired) => (
+              <div
+                className={combineClasses(
+                  styles.transcriptContainer,
+                  styles['transcriptContainer__' + desired]
+                )}>
+                <RenderGuardedComponent
+                  props={currentTranscriptPhrases}
+                  component={(phrases) => (
+                    <>
+                      {phrases.map(({ phrase, id }) => (
+                        <TranscriptPhrase
+                          phrase={phrase}
+                          progress={progressVWC}
+                          durationSeconds={props.durationSeconds}
+                          key={id}>
+                          {phrase.phrase}
+                        </TranscriptPhrase>
+                      ))}
+                    </>
+                  )}
+                />
+              </div>
+            )}
+          />
         )}
         <div className={styles.controlsContainer}>
           <div className={styles.titleAndInstructorContainer}>
@@ -406,7 +443,10 @@ export const Player = (
                   props={closedCaptioningDesired}
                   component={(desired) => (
                     <div
-                      className={desired ? styles.iconClosedCaptions : styles.iconNoClosedCaptions}
+                      className={combineClasses(
+                        styles.iconClosedCaptions,
+                        styles['iconClosedCaptions__' + desired]
+                      )}
                     />
                   )}
                 />
@@ -443,6 +483,61 @@ export const Player = (
           <div className={styles.totalTime}>{totalTime}</div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const TranscriptPhrase = (
+  props: React.PropsWithChildren<{
+    progress: ValueWithCallbacks<number>;
+    durationSeconds: number;
+    phrase: OsehTranscriptPhrase;
+  }>
+): ReactElement => {
+  const ele = useRef<HTMLDivElement>(null);
+  const opacityTarget = useMappedValueWithCallbacks(
+    props.progress,
+    useCallback(
+      (progress) => {
+        const progressSeconds = progress * props.durationSeconds;
+        const timeUntilEnd = props.phrase.endsAt - progressSeconds;
+
+        const opacityAccordingToStart = 1;
+        const opacityAccordingToEnd = timeUntilEnd < fadeTimeSeconds ? 0 : 1;
+        return Math.min(opacityAccordingToStart, opacityAccordingToEnd);
+      },
+      [props.durationSeconds, props.phrase]
+    )
+  );
+
+  const target = useAnimatedValueWithCallbacks<{ opacity: number }>(
+    () => ({ opacity: 0 }),
+    () => [
+      new BezierAnimator(
+        ease,
+        fadeTimeSeconds * 1000,
+        (p) => p.opacity,
+        (p, v) => (p.opacity = v)
+      ),
+    ],
+    (val) => {
+      if (ele.current !== null) {
+        ele.current.style.opacity = val.opacity.toString();
+      }
+    }
+  );
+
+  useValueWithCallbacksEffect(
+    opacityTarget,
+    useCallback((opacity) => {
+      setVWC(target, { opacity }, (a, b) => a.opacity === b.opacity);
+      return undefined;
+    }, [])
+  );
+
+  return (
+    <div className={styles.transcriptPhrase} ref={ele}>
+      {props.children}
     </div>
   );
 };
