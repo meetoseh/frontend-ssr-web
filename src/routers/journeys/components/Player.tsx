@@ -36,7 +36,7 @@ const CLOSED_CAPTIONING_DESIRED_VALUES: ClosedCaptioningDesired[] = ['none', 'sm
 
 const fadeTimeSeconds = 0.5;
 const showEarlySeconds = fadeTimeSeconds;
-const holdLateSeconds = 5 + fadeTimeSeconds;
+const holdLateSeconds = 3 + fadeTimeSeconds;
 
 /**
  * Displays the player for the class. Must be in a container with an explicit
