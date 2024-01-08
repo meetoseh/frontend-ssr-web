@@ -16,10 +16,14 @@
 .iconExperts {
   composes: icon;
   background-image: url('../assets/experts.svg');
+  width: 22px;
+  height: 24px;
 }
 
 .iconGoals {
   composes: icon;
+  width: 22px;
+  height: 23px;
   background-image: url('../assets/goals.svg');
 }
 
