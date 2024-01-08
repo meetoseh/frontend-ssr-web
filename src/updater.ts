@@ -532,10 +532,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
     const cancelers = new Callbacks<undefined>();
     cancel = () => {
       cancel = null;
-      if (doneTentatively) {
-        return;
-      }
-
+      doneTentatively = true;
       cancelers.call(undefined);
     };
 
@@ -641,9 +638,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
           )}`
         );
         doneTentatively = true;
-        client.quit().catch(() => {
-          client.disconnect().catch(() => {});
-        });
+        cancelers.call(undefined);
         resolve();
         return;
       }

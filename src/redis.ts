@@ -288,6 +288,11 @@ const discoverMasterUsingSentinel = ({
         reconnectStrategy: false,
       },
     });
+    cancelers.add(() => {
+      client.quit().catch(() => {
+        client.disconnect().catch(() => {});
+      });
+    });
     try {
       await checkMaster();
     } finally {
@@ -303,7 +308,7 @@ const discoverMasterUsingSentinel = ({
 
       done = true;
       cancel = null;
-      client.disconnect().catch(() => {});
+      cancelers.call(undefined);
       reject(err);
     }
 
@@ -378,9 +383,7 @@ const discoverMasterUsingSentinel = ({
 
       done = true;
       cancel = null;
-      client.quit().catch(() => {
-        client.disconnect().catch(() => {});
-      });
+      cancelers.call(undefined);
       resolve({ host: ip, port });
     }
 
