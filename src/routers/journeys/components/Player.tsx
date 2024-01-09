@@ -31,8 +31,8 @@ const areSizesEqual = (a: Size | null, b: Size | null): boolean => {
   return a.width === b.width && a.height === b.height;
 };
 
-type ClosedCaptioningDesired = 'none' | 'small' | 'big';
-const CLOSED_CAPTIONING_DESIRED_VALUES: ClosedCaptioningDesired[] = ['none', 'small', 'big'];
+type ClosedCaptioningDesired = 'none' | 'small';
+const CLOSED_CAPTIONING_DESIRED_VALUES: ClosedCaptioningDesired[] = ['none', 'small'];
 
 const fadeTimeSeconds = 0.5;
 const showEarlySeconds = fadeTimeSeconds;
