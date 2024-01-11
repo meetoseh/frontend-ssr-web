@@ -26,11 +26,17 @@
 }
 
 @media screen and (min-width: 845px) {
+  .contentContainer {
+    display: grid;
+    grid-area: 1fr / 1fr;
+    align-items: stretch;
+    justify-content: normal;
+  }
+
   .tablet {
-    display: flex;
-    flex-flow: row nowrap;
-    justify-content: center;
-    align-items: center;
+    display: grid;
+    width: 100%;
+    grid-area: 1 / 1 / 1 / 1;
   }
 
   .mobile {

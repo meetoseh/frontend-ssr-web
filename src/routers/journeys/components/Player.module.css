@@ -12,16 +12,39 @@
   align-items: stretch;
 }
 
+.foreground {
+  grid-area: 1 / 1 / 1 / 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  position: relative;
+}
+
+.header {
+  display: none;
+}
+
+.spacer {
+  display: block;
+  content: '';
+}
+
 .placeholder {
   contain: size;
   width: 100%;
 }
 
 .playContainer {
-  grid-area: 1 / 1 / 1 / 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   justify-content: center;
   align-items: center;
+  pointer-events: none;
 }
 
 .playButton {
@@ -36,6 +59,7 @@
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
   border: none;
+  pointer-events: auto;
 
   display: flex;
   justify-content: center;
@@ -68,7 +92,6 @@
 }
 
 .bottomContents {
-  grid-area: 1 / 1 / 1 / 1;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -237,6 +260,53 @@
   font-style: normal;
   font-weight: 400;
   line-height: 130%;
+}
+
+@media screen and (max-width: 844px) {
+  .header {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .wordmarkContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 19.79%, rgba(0, 0, 0, 0) 100%);
+    padding-top: 20px;
+    width: 100%;
+  }
+
+  .wordmark {
+    border: none;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .iconWordmark {
+    background: no-repeat center center;
+    display: inline-block;
+    vertical-align: middle;
+    content: '';
+    width: 87px;
+    height: 20px;
+    background-size: 100% 100%;
+    background-image: url('../assets/Oseh_Wordmark_White.svg');
+  }
 }
 
 @media screen and (min-width: 845px) {

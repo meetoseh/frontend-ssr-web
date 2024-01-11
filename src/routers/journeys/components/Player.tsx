@@ -391,138 +391,149 @@ export const Player = (
           }}
         />
       </div>
-      <div className={styles.playContainer}>
-        <button type="button" className={styles.playButton} onClick={onPlayButtonClick}>
-          <RenderGuardedComponent
-            props={audioState}
-            component={(state) => {
-              if (state === 'paused') {
-                return <div className={styles.iconPlay} />;
-              }
-              if (state === 'playing') {
-                return <div className={styles.iconPause} />;
-              }
-              if (state === 'errored') {
-                const err = audioContent.get().error;
-                if (err !== null) {
-                  return err;
-                }
-                return <ErrorBlock>Something went wrong.</ErrorBlock>;
-              }
-              return (
-                <InlineOsehSpinner
-                  size={{
-                    type: 'react-rerender',
-                    props: { height: 20 },
-                  }}
-                />
-              );
-            }}
-          />
-        </button>
-      </div>
-      <div className={styles.bottomContents}>
-        {props.transcriptRef !== null && (
-          <RenderGuardedComponent
-            props={closedCaptioningDesired}
-            component={(desired) => (
-              <div
-                className={combineClasses(
-                  styles.transcriptContainer,
-                  styles['transcriptContainer__' + desired]
-                )}>
-                <RenderGuardedComponent
-                  props={currentTranscriptPhrases}
-                  component={(phrases) => (
-                    <>
-                      {phrases.map(({ phrase, id }) => (
-                        <TranscriptPhrase
-                          phrase={phrase}
-                          progress={progressVWC}
-                          durationSeconds={props.durationSeconds}
-                          key={id}>
-                          {phrase.phrase}
-                        </TranscriptPhrase>
-                      ))}
-                    </>
-                  )}
-                />
-              </div>
-            )}
-          />
-        )}
-        <div className={styles.controlsContainer}>
-          <div className={styles.titleAndInstructorContainer}>
-            <div className={styles.instructor}>{props.instructor}</div>
-            <div className={styles.title}>{props.title}</div>
-          </div>
-          <div className={styles.buttonsContainer}>
-            <button className={styles.button} type="button" onClick={onMuteButtonClick}>
-              <RenderGuardedComponent
-                props={muted}
-                component={(muted) => {
-                  if (!muted) {
-                    return (
-                      <>
-                        <div className={styles.iconUnmute} />
-                        <div className={assistiveStyles.srOnly}>Mute</div>
-                      </>
-                    );
-                  } else {
-                    return (
-                      <>
-                        <div className={styles.iconMute} />
-                        <div className={assistiveStyles.srOnly}>Unmute</div>
-                      </>
-                    );
-                  }
-                }}
-              />
-            </button>
-            {props.transcriptRef !== null && (
-              <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
-                <RenderGuardedComponent
-                  props={closedCaptioningDesired}
-                  component={(desired) => (
-                    <div
-                      className={combineClasses(
-                        styles.iconClosedCaptions,
-                        styles['iconClosedCaptions__' + desired]
-                      )}
-                    />
-                  )}
-                />
-              </button>
-            )}
+      <div className={styles.foreground}>
+        <div className={styles.header}>
+          <div className={styles.wordmarkContainer}>
+            <a className={styles.wordmark} href="https://www.oseh.com">
+              <div className={styles.iconWordmark} />
+              <div className={assistiveStyles.srOnly}>Oseh</div>
+            </a>
           </div>
         </div>
-        <button
-          className={styles.progressContainer}
-          type="button"
-          onClick={onProgressContainerClick}>
-          <div className={styles.progressFull} style={{ width: '0' }} ref={progressFullRef} />
-          <div className={styles.progressDot} />
-          <div className={styles.progressEmpty} />
-        </button>
-        <div className={styles.durationContainer}>
-          <div className={styles.currentTime}>
+        <div className={styles.spacer} />
+        <div className={styles.playContainer}>
+          <button type="button" className={styles.playButton} onClick={onPlayButtonClick}>
             <RenderGuardedComponent
-              props={progressVWC}
-              component={(progress) => {
-                const inSeconds = Math.floor(props.durationSeconds * progress);
-                const minutes = Math.floor(inSeconds / 60);
-                const seconds = Math.floor(inSeconds) % 60;
-
+              props={audioState}
+              component={(state) => {
+                if (state === 'paused') {
+                  return <div className={styles.iconPlay} />;
+                }
+                if (state === 'playing') {
+                  return <div className={styles.iconPause} />;
+                }
+                if (state === 'errored') {
+                  const err = audioContent.get().error;
+                  if (err !== null) {
+                    return err;
+                  }
+                  return <ErrorBlock>Something went wrong.</ErrorBlock>;
+                }
                 return (
-                  <>
-                    {minutes}:{seconds < 10 ? '0' : ''}
-                    {seconds}
-                  </>
+                  <InlineOsehSpinner
+                    size={{
+                      type: 'react-rerender',
+                      props: { height: 20 },
+                    }}
+                  />
                 );
               }}
             />
+          </button>
+        </div>
+        <div className={styles.bottomContents}>
+          {props.transcriptRef !== null && (
+            <RenderGuardedComponent
+              props={closedCaptioningDesired}
+              component={(desired) => (
+                <div
+                  className={combineClasses(
+                    styles.transcriptContainer,
+                    styles['transcriptContainer__' + desired]
+                  )}>
+                  <RenderGuardedComponent
+                    props={currentTranscriptPhrases}
+                    component={(phrases) => (
+                      <>
+                        {phrases.map(({ phrase, id }) => (
+                          <TranscriptPhrase
+                            phrase={phrase}
+                            progress={progressVWC}
+                            durationSeconds={props.durationSeconds}
+                            key={id}>
+                            {phrase.phrase}
+                          </TranscriptPhrase>
+                        ))}
+                      </>
+                    )}
+                  />
+                </div>
+              )}
+            />
+          )}
+          <div className={styles.controlsContainer}>
+            <div className={styles.titleAndInstructorContainer}>
+              <div className={styles.instructor}>{props.instructor}</div>
+              <div className={styles.title}>{props.title}</div>
+            </div>
+            <div className={styles.buttonsContainer}>
+              <button className={styles.button} type="button" onClick={onMuteButtonClick}>
+                <RenderGuardedComponent
+                  props={muted}
+                  component={(muted) => {
+                    if (!muted) {
+                      return (
+                        <>
+                          <div className={styles.iconUnmute} />
+                          <div className={assistiveStyles.srOnly}>Mute</div>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <div className={styles.iconMute} />
+                          <div className={assistiveStyles.srOnly}>Unmute</div>
+                        </>
+                      );
+                    }
+                  }}
+                />
+              </button>
+              {props.transcriptRef !== null && (
+                <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
+                  <RenderGuardedComponent
+                    props={closedCaptioningDesired}
+                    component={(desired) => (
+                      <div
+                        className={combineClasses(
+                          styles.iconClosedCaptions,
+                          styles['iconClosedCaptions__' + desired]
+                        )}
+                      />
+                    )}
+                  />
+                </button>
+              )}
+            </div>
           </div>
-          <div className={styles.totalTime}>{totalTime}</div>
+          <button
+            className={styles.progressContainer}
+            type="button"
+            onClick={onProgressContainerClick}>
+            <div className={styles.progressFull} style={{ width: '0' }} ref={progressFullRef} />
+            <div className={styles.progressDot} />
+            <div className={styles.progressEmpty} />
+          </button>
+          <div className={styles.durationContainer}>
+            <div className={styles.currentTime}>
+              <RenderGuardedComponent
+                props={progressVWC}
+                component={(progress) => {
+                  const inSeconds = Math.floor(props.durationSeconds * progress);
+                  const minutes = Math.floor(inSeconds / 60);
+                  const seconds = Math.floor(inSeconds) % 60;
+
+                  return (
+                    <>
+                      {minutes}:{seconds < 10 ? '0' : ''}
+                      {seconds}
+                    </>
+                  );
+                }}
+              />
+            </div>
+            <div className={styles.totalTime}>{totalTime}</div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,48 @@
+.container {
+  display: grid;
+  grid-template: 60px 1fr / 1fr;
+  grid-area: 1 / 1/ 1 / 1;
+}
+
+.header {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.wordmark {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.iconWordmark {
+  background: no-repeat center center;
+  display: inline-block;
+  vertical-align: middle;
+  content: '';
+  width: 87px;
+  height: 20px;
+  background-size: 100% 100%;
+  background-image: url('../assets/Oseh_Wordmark_White.svg');
+}
+
+.content {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
 .leftColumn {
   margin-right: 40px;
   display: grid;
