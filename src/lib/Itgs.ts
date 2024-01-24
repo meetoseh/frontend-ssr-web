@@ -1,10 +1,18 @@
 import { RqliteConnection } from 'rqdb';
-import { Callbacks } from '../uikit/lib/Callbacks';
+import {
+  Callbacks,
+  ValueWithCallbacks,
+  createWritableValueWithCallbacks,
+} from '../uikit/lib/Callbacks';
 import { AsyncLock, createLock } from './createLock';
 import redis from 'redis';
 import { HostAndPort, RedisClient, discoverMasterUsingSentinels } from '../redis';
 import { constructCancelablePromise } from './CancelablePromiseConstructor';
 import { CancelablePromise } from './CancelablePromise';
+import { createCancelablePromiseFromCallbacks } from './createCancelablePromiseFromCallbacks';
+import { colorNow } from '../logging';
+import { inspect } from 'util';
+import chalk from 'chalk';
 
 /**
  * Lazily initialized integrations to just about everything. Should only be
@@ -18,11 +26,18 @@ class Itgs {
   private cleanedUp: boolean;
   private readonly cleanup: Callbacks<undefined>;
   private readonly cleaningUp: Callbacks<undefined>;
+  /**
+   * Where to emit errors that break the standard Promise flow. Notably, this
+   * is required because of the extremely impractical technique used by the redis
+   * library to handle errors
+   */
+  private readonly onOutOfBandError: (err: any) => void;
 
-  constructor() {
+  constructor(onOutOfBandError: (err: any) => void) {
     this.cleanedUp = false;
     this.cleanup = new Callbacks();
     this.cleaningUp = new Callbacks();
+    this.onOutOfBandError = onOutOfBandError;
     this.lock = createLock();
   }
 
@@ -197,11 +212,17 @@ class Itgs {
               return;
             }
 
+            const handleError = (err: any) => {
+              this.onOutOfBandError(err);
+            };
+
+            client.addListener('error', handleError);
             this._redis = client;
 
             const fullCleanup = () => {
               this._redis = undefined;
               cleanupClient();
+              client.removeListener('error', handleError);
             };
 
             this.cleanup.remove(cleanupClient);
@@ -252,11 +273,20 @@ export type { Itgs };
  * Invokes the given function with an integrations instance which is closed
  * once the promise resolves or rejects. The function must be careful not
  * to leak the integrations instance.
+ *
+ * Since the function is not cancelable, it must have handle out of band
+ * errors itself.
  */
-export const withItgs = async <T>(fn: (itgs: Itgs) => Promise<T>): Promise<T> => {
-  const itgs = new Itgs();
+export const withItgs = async <T>(
+  fn: (itgs: Itgs, outOfBandError: ValueWithCallbacks<any | undefined>) => Promise<T>
+): Promise<T> => {
+  const outOfBandError = createWritableValueWithCallbacks(undefined);
+  const itgs = new Itgs((e) => {
+    outOfBandError.set(e);
+    outOfBandError.callbacks.call(undefined);
+  });
   try {
-    return await fn(itgs);
+    return await fn(itgs, outOfBandError);
   } finally {
     await itgs.close();
   }
@@ -267,6 +297,9 @@ export const withItgs = async <T>(fn: (itgs: Itgs) => Promise<T>): Promise<T> =>
  * is closed once the promise resolves or rejects. The function must be careful
  * not to leak the integrations instance. Rejecting the returned cancelable will
  * reject the cancelable returned by the provided function.
+ *
+ * If an out of band error occurs, the underlying function is canceled and the
+ * returned promise rejects with the error.
  *
  * @param fn The function to execute
  * @returns A cancelable promise which fulfills like the result of the function
@@ -286,12 +319,44 @@ export const withItgsCancelable = <T>(
         return;
       }
 
-      const itgs = new Itgs();
+      const outOfBandError = createWritableValueWithCallbacks(undefined);
+      const hadOutOfBandError = createCancelablePromiseFromCallbacks(outOfBandError.callbacks);
+      hadOutOfBandError.promise.catch(() => {});
+
+      const itgs = new Itgs((e) => {
+        outOfBandError.set(e);
+        outOfBandError.callbacks.call(undefined);
+      });
+
       try {
         const res = fn(itgs);
         state.cancelers.add(res.cancel);
         if (state.finishing) {
           res.cancel();
+        }
+        await Promise.race([res.promise, hadOutOfBandError.promise]);
+        if (hadOutOfBandError.done()) {
+          const err = outOfBandError.get();
+          console.log(
+            `${colorNow()} ${chalk.redBright(
+              'withItgsCancelable handling out of band error'
+            )} ${inspect(err, {
+              colors: true,
+            })}`
+          );
+          res.cancel();
+          try {
+            await res.promise;
+          } catch (e) {
+            console.log(
+              `${colorNow()} ${chalk.gray(
+                'ignoring error from canceled withItgsCancelable promise'
+              )} ${inspect(e, {
+                colors: true,
+              })}`
+            );
+          }
+          throw err;
         }
         const val = await res.promise;
         state.finishing = true;
@@ -301,6 +366,8 @@ export const withItgsCancelable = <T>(
         state.finishing = true;
         state.done = true;
         reject(e);
+      } finally {
+        hadOutOfBandError.cancel();
       }
     },
   });
