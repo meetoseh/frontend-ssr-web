@@ -2,6 +2,7 @@ import { ReactElement, useMemo } from 'react';
 import styles from './ProvidersList.module.css';
 import { OauthProvider } from '../lib/OauthProvider';
 import { ButtonWithIcon, ButtonsWithIconsColumn } from './ButtonsWithIconsColumn';
+import { sendPlausibleEvent } from '../lib/sendPlausibleEvent';
 
 /**
  * An item within a providers list, which is analogous to an item within
@@ -13,6 +14,14 @@ export type ProvidersListItem = {
    * The provider to use for this item.
    */
   provider: OauthProvider;
+
+  /**
+   * True if we inject standard plausible tracking into the appropriate handler.
+   * This will cause the `frontend-ssr-web/uikit/ProvidersList--click` event to
+   * be sent when the button is clicked.
+   */
+  tracking: boolean;
+
   /**
    * Either the function to call when the button is clicked, or a string
    * for the href of an anchor tag. Generally a string should be used if
@@ -46,8 +55,32 @@ export type ProvidersListProps = {
 export const ProvidersList = ({ items }: ProvidersListProps): ReactElement => {
   const buttons = useMemo(
     () =>
-      items.map(
-        ({ provider, onClick, onLinkClick }): ButtonWithIcon => ({
+      items.map(({ provider, tracking, onClick, onLinkClick }): ButtonWithIcon => {
+        const track = () =>
+          sendPlausibleEvent('click--frontend-ssr-web/uikit/ProvidersList', {
+            name: 'frontend-ssr-web/uikit/ProvidersList--click',
+            props: {
+              provider,
+            },
+          });
+
+        const injectedOnClick =
+          typeof onClick === 'string' || !tracking
+            ? onClick
+            : () => {
+                track();
+                onClick();
+              };
+
+        const injectedOnLinkClick =
+          typeof onClick !== 'string' || !tracking
+            ? onLinkClick
+            : () => {
+                track();
+                onLinkClick?.();
+              };
+
+        return {
           key: provider,
           icon: <span className={styles['icon' + provider]} />,
           name: {
@@ -56,10 +89,10 @@ export const ProvidersList = ({ items }: ProvidersListProps): ReactElement => {
             Direct: 'Sign in with Email',
             Dev: 'Sign in with Dev',
           }[provider],
-          onClick,
-          onLinkClick,
-        })
-      ),
+          onClick: injectedOnClick,
+          onLinkClick: injectedOnLinkClick,
+        };
+      }),
     [items]
   );
 

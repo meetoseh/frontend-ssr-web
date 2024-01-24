@@ -8,6 +8,9 @@ import { copyAndShuffle } from './lib/copyAndShuffle';
 import { colorNow } from './logging';
 import chalk from 'chalk';
 
+export type RedisClient = ReturnType<typeof redis.createClient>;
+export type RedisPipeline = ReturnType<RedisClient['multi']>;
+
 export type HostAndPort = {
   host: string;
   port: number;

@@ -33,11 +33,6 @@ import { inspect } from 'util';
 import { createCancelableTimeout } from './lib/createCancelableTimeout';
 import { constructSitemapRoute } from './routers/sitemap/routes/sitemap';
 
-/**
- * Prefix used on all routes
- */
-const globalPrefix = '/shared' as const;
-
 async function main() {
   const program = new Command();
   program.version('0.0.1');
@@ -505,9 +500,9 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
     for (const route of routes) {
       // awaits here are optional and do not affect the parallelism factor
       if (typeof route === 'function') {
-        await initRoutesThenRealizeEachThenAddToRootRouter([globalPrefix, prefix], route);
+        await initRoutesThenRealizeEachThenAddToRootRouter([prefix], route);
       } else {
-        await realizeRouteAndAddToRootRouter([globalPrefix, prefix], route);
+        await realizeRouteAndAddToRootRouter([prefix], route);
       }
     }
   }
@@ -515,7 +510,7 @@ async function createRouter(opts: CommandLineArgs): Promise<RootRouter> {
     flattenRoutes({ ...opts, artifacts: 'reuse', serve: false, docsOnly: true });
 
   const openapiRoute = constructOpenapiSchemaRoute(getFlatRoutes);
-  await realizeRouteAndAddToRootRouter([globalPrefix], openapiRoute);
+  await realizeRouteAndAddToRootRouter(['/shared'], openapiRoute);
   const sitemapRoutes = constructSitemapRoute(getFlatRoutes);
   for (const sitemapRoute of sitemapRoutes) {
     await realizeRouteAndAddToRootRouter([], sitemapRoute);
@@ -538,7 +533,7 @@ async function flattenRoutes(opts: CommandLineArgs): Promise<RouteWithPrefix[]> 
     for (const route of routes) {
       const realRoutes = typeof route === 'function' ? await route(opts) : [route];
       for (const realRoute of realRoutes) {
-        result.push({ prefix: (globalPrefix + prefix) as `/${string}`, route: realRoute });
+        result.push({ prefix: prefix as `/${string}`, route: realRoute });
       }
     }
   }

@@ -7,7 +7,15 @@ import journeyRoutes from './journeys/router';
 const routes: {
   [prefix: string]: (PendingRoute | ((args: CommandLineArgs) => Promise<PendingRoute[]>))[];
 } = {};
-routes['/management'] = managementRoutes;
-routes[''] = [docsRoute, ...journeyRoutes];
+routes['/shared/management'] = managementRoutes;
+routes['/shared'] = [docsRoute];
+
+for (const [pfx, subroutes] of Object.entries(journeyRoutes)) {
+  if (pfx in routes) {
+    routes[pfx].push(...subroutes);
+  } else {
+    routes[pfx] = subroutes;
+  }
+}
 
 export default routes;

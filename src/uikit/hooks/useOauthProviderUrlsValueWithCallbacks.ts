@@ -20,7 +20,14 @@ import { describeError } from '../components/ErrorBlock';
  *   providers, in the same order. Set only if all the items are ready
  */
 export const useOauthProviderUrlsValueWithCallbacks = (
-  providers: ValueWithCallbacks<OauthProvider[]>
+  providers: ValueWithCallbacks<OauthProvider[]>,
+  opts: {
+    /**
+     * True to trigger `frontend-ssr-web/uikit/ProvidersList--click` when one
+     * of the items is clicked, false to not trigger it.
+     */
+    tracking: boolean;
+  }
 ): [
   ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>,
   WritableValueWithCallbacks<ReactElement | null>,
@@ -30,6 +37,7 @@ export const useOauthProviderUrlsValueWithCallbacks = (
       return {
         provider: p,
         onClick: '#',
+        tracking: opts.tracking,
       };
     })
   );
@@ -70,6 +78,7 @@ export const useOauthProviderUrlsValueWithCallbacks = (
             mapped.map((url, idx) => ({
               provider: providers[idx],
               onClick: url,
+              tracking: opts.tracking,
             }))
           );
         }

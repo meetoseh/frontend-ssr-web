@@ -1,5 +1,4 @@
 import { createContext, PropsWithChildren, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Buffer } from 'buffer';
 import { apiFetch } from '../ApiConstants';
 import { getCurrentServerTimeMS } from '../lib/getCurrentServerTimeMS';
 import { Callbacks, useWritableValueWithCallbacks, ValueWithCallbacks } from '../lib/Callbacks';
@@ -179,7 +178,7 @@ export const extractUserAttributes = (tokenConfig: TokenResponseConfig): UserAtt
   // and they can lie to themselves if they want
   const idToken = tokenConfig.idToken;
   const claimsBase64 = idToken.split('.')[1];
-  const claimsJson = Buffer.from(claimsBase64, 'base64').toString('utf8');
+  const claimsJson = atob(claimsBase64);
   const claims = JSON.parse(claimsJson);
 
   const nameClaims: { name: string | null; given_name: string | null; family_name: string | null } =
@@ -293,7 +292,7 @@ const isTokenFresh = (token: TokenResponseConfig, nowMs: number): boolean => {
   const minExpTime = nowMs + 1000 * 60 * 5;
 
   const claimsBase64 = token.idToken.split('.')[1];
-  const claimsJson = Buffer.from(claimsBase64, 'base64').toString('utf8');
+  const claimsJson = atob(claimsBase64);
   const claims = JSON.parse(claimsJson);
   return claims.exp * 1000 > minExpTime;
 };
@@ -315,7 +314,7 @@ const isRefreshable = (token: TokenResponseConfig, nowMs: number): boolean => {
   const minOgExpTime = nowMs - 1000 * 60 * 60 * 24 * 60 + 1000 * 60 * 5;
 
   const refreshClaimsBase64 = token.refreshToken.split('.')[1];
-  const refreshClaimsJson = Buffer.from(refreshClaimsBase64, 'base64').toString('utf8');
+  const refreshClaimsJson = atob(refreshClaimsBase64);
   const refreshClaims = JSON.parse(refreshClaimsJson);
 
   if (refreshClaims.iat <= 1679589900) {
@@ -611,7 +610,7 @@ export const LoginProvider = ({
 
   const runningLock = useRef<Promise<void> | null>(null);
   useEffect(() => {
-    if (valueVWC.get().state !== 'loading') {
+    if (window === undefined || valueVWC.get().state !== 'loading') {
       return;
     }
 

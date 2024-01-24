@@ -17,6 +17,7 @@ import {
 } from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { setVWC } from '../../../uikit/lib/setVWC';
+import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -104,6 +105,18 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
     }
   }, []);
 
+  usePlausibleEvent(
+    'pageview--frontend-ssr-web/routers/journeys/components/SharedUnlockedClassApp.tsx',
+    {
+      name: 'pageview',
+      componentPath: '/frontend-ssr-web/routers/journeys/components/SharedUnlockedClassApp.tsx',
+      props: {
+        slug: props.slug,
+        instructor: props.instructor,
+      },
+    }
+  );
+
   return (
     <html>
       <head>
@@ -143,14 +156,19 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
   );
 };
 
-export type SharedUnlockedClassBodyDelegateProps = Omit<SharedUnlockedClassProps, 'stylesheets'> & {
+export type SharedUnlockedClassBodyDelegateProps = Omit<
+  SharedUnlockedClassProps,
+  'stylesheets' | 'slug'
+> & {
   signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
   transcript: ValueWithCallbacks<OsehTranscriptResult>;
 };
 /**
  * Renders the meaningful content that describes and plays the specific class.
  */
-export const SharedUnlockedClassBody = (props: Omit<SharedUnlockedClassProps, 'stylesheets'>) => {
+export const SharedUnlockedClassBody = (
+  props: Omit<SharedUnlockedClassProps, 'stylesheets' | 'slug'>
+) => {
   const modalContext = useContext(ModalContext);
   const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [
     'Google',
@@ -158,7 +176,9 @@ export const SharedUnlockedClassBody = (props: Omit<SharedUnlockedClassProps, 's
     'Direct',
   ]);
 
-  const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers);
+  const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers, {
+    tracking: true,
+  });
   const transcript = useOsehTranscriptValueWithCallbacks({
     type: 'react-rerender',
     props: props.transcriptRef,

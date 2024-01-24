@@ -29,6 +29,13 @@ export type ComponentRouteOptions = {
   bootstrapScriptContent?: string;
 };
 
+export type ComponentBody = {
+  /** The element to render on the server */
+  element: ReactElement;
+  /** If specified, set to `window.__INITIAL_PROPS__` for client-side hydration */
+  props?: object;
+};
+
 /**
  * Manages serving an HTML page using a ReactElement which will render
  * an html tag. This requires that you have already prepared the required
@@ -36,12 +43,7 @@ export type ComponentRouteOptions = {
  * `createWebpackComponent` to assist with bundling.
  */
 export const componentRouteHandler = (
-  body: (routerPrefix: string) => (args: RouteBodyArgs) => Promise<{
-    /** The element to render on the server */
-    element: ReactElement;
-    /** If specified, set to `window.__INITIAL_PROPS__` for client-side hydration */
-    props?: object;
-  }>,
+  body: (routerPrefix: string) => (args: RouteBodyArgs) => CancelablePromise<ComponentBody>,
   options?: (routePrefix: string) => ComponentRouteOptions
 ): ((
   routerPrefix: string
@@ -58,9 +60,14 @@ export const componentRouteHandler = (
 
       const isCrawler = args.req.headers['user-agent']?.match(/bot|crawler|spider/i);
 
-      let pageData: Awaited<ReturnType<typeof realBody>>;
+      let pageData: ComponentBody;
       try {
-        pageData = await realBody(args);
+        const pageDataCancelable = realBody(args);
+        args.state.cancelers.add(pageDataCancelable.cancel);
+        if (args.state.finishing) {
+          pageDataCancelable.cancel();
+        }
+        pageData = await pageDataCancelable.promise;
       } catch (e) {
         if (args.state.finishing) {
           return;

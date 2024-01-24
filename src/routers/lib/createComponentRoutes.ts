@@ -16,6 +16,7 @@ import crypto from 'crypto';
 import { parseContentType } from './contentType';
 import { copyWithStringSubstitution } from './copyWithStringSubstitution';
 import { IncomingMessage, ServerResponse } from 'http';
+import { constructCancelablePromise } from '../../lib/CancelablePromiseConstructor';
 
 /**
  * This string is used as the prefix for the css build path when creating
@@ -156,7 +157,7 @@ export type CreateComponentRoutesArgs<T extends object> = (
    */
   body: (
     bundleArgs: BundleArgs
-  ) => Promise<(routerPrefix: string) => (args: RouteBodyArgs) => Promise<T>>;
+  ) => Promise<(routerPrefix: string) => (args: RouteBodyArgs) => CancelablePromise<T>>;
 
   /**
    * The documentation for the route serving the component.
@@ -306,13 +307,40 @@ export const createComponentRoutes = async <T extends object>({
         return componentRouteHandler(
           (routerPrefix) => {
             const realBody = bodyReadyForPrefix(routerPrefix);
-            return async (args) => {
-              const props = await realBody(args);
-              return {
-                element: component(props),
-                props,
-              };
-            };
+            return (args) =>
+              constructCancelablePromise({
+                body: async (state, resolve, reject) => {
+                  if (state.finishing) {
+                    if (!state.done) {
+                      state.done = true;
+                      reject(new Error('canceled'));
+                    }
+                    return;
+                  }
+
+                  const propsCancelable = realBody(args);
+                  state.cancelers.add(propsCancelable.cancel);
+                  if (state.finishing) {
+                    propsCancelable.cancel();
+                  }
+                  try {
+                    const props = await propsCancelable.promise;
+                    const element = component(props);
+                    state.finishing = true;
+                    state.done = true;
+                    resolve({
+                      element,
+                      props,
+                    });
+                  } catch (e) {
+                    state.finishing = true;
+                    state.done = true;
+                    reject(e);
+                  } finally {
+                    state.cancelers.remove(propsCancelable.cancel);
+                  }
+                },
+              });
           },
           (routerPrefix) => ({
             bootstrapModules: bootstrapModules.map((m) => routerPrefix + m),

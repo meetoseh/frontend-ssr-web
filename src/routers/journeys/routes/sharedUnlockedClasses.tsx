@@ -2,7 +2,7 @@ import { AdaptedRqliteResultItem } from 'rqdb';
 import { CommandLineArgs } from '../../../CommandLineArgs';
 import { CancelablePromise } from '../../../lib/CancelablePromise';
 import { constructCancelablePromise } from '../../../lib/CancelablePromiseConstructor';
-import { withItgs } from '../../../lib/Itgs';
+import { withItgs, withItgsCancelable } from '../../../lib/Itgs';
 import { createCancelablePromiseFromCallbacks } from '../../../lib/createCancelablePromiseFromCallbacks';
 import { createComponentRoutes } from '../../lib/createComponentRoutes';
 import { simpleUidPath } from '../../lib/pathHelpers';
@@ -20,6 +20,7 @@ import { thumbHashToDataURL } from 'thumbhash';
 import { createImageFileJWT } from '../../../lib/createImageFileJWT';
 import { createContentFileJWT } from '../../../lib/createContentFileJWT';
 import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
+import { createFakeCancelable } from '../../../lib/createFakeCancelable';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -101,32 +102,34 @@ WHERE
       return (routerPrefix) => {
         const pathExtractor = simpleUidPath(true)(routerPrefix);
         const stylesheets = unprefixedStylesheets.map((href) => `${routerPrefix}${href}`);
-        return (args): Promise<SharedUnlockedClassProps> => {
+        return (args): CancelablePromise<SharedUnlockedClassProps> => {
           if (args.req.url === undefined) {
             throw new Error('no url');
           }
           const slug = pathExtractor(args.req.url);
 
-          return withItgs(async (itgs): Promise<SharedUnlockedClassProps> => {
-            const conn = await itgs.conn();
-            const cursor = conn.cursor('none');
-            const canceled = createCancelablePromiseFromCallbacks(args.state.cancelers);
-            canceled.promise.catch(() => {});
-            if (args.state.finishing) {
-              canceled.cancel();
-              throw new Error('canceled');
-            }
+          return withItgsCancelable(
+            (itgs): CancelablePromise<SharedUnlockedClassProps> =>
+              createFakeCancelable(async () => {
+                const conn = await itgs.conn();
+                const cursor = conn.cursor('none');
+                const canceled = createCancelablePromiseFromCallbacks(args.state.cancelers);
+                canceled.promise.catch(() => {});
+                if (args.state.finishing) {
+                  canceled.cancel();
+                  throw new Error('canceled');
+                }
 
-            const abortController = new AbortController();
-            const abortSignal = abortController.signal;
-            const handleAbort = () => {
-              abortController.abort();
-            };
-            args.state.cancelers.add(handleAbort);
+                const abortController = new AbortController();
+                const abortSignal = abortController.signal;
+                const handleAbort = () => {
+                  abortController.abort();
+                };
+                args.state.cancelers.add(handleAbort);
 
-            try {
-              const response = await cursor.execute(
-                `
+                try {
+                  const response = await cursor.execute(
+                    `
 SELECT
   canonical_journey_slugs.slug,
   canonical_journey_slugs.primary_at,
@@ -198,87 +201,88 @@ WHERE
   AND content_files.id = journeys.audio_content_file_id
   AND instructors.id = journeys.instructor_id
                 `,
-                [slug],
-                {
-                  signal: abortSignal,
+                    [slug],
+                    {
+                      signal: abortSignal,
+                    }
+                  );
+
+                  if (args.state.finishing) {
+                    throw new Error('canceled');
+                  }
+
+                  if (response.results === undefined || response.results.length === 0) {
+                    throw new Error('not found');
+                  }
+
+                  const [
+                    canonicalSlug,
+                    canonicalSlugSince,
+                    uid,
+                    title,
+                    description,
+                    imageThumbhashBase64,
+                    imageUid,
+                    instructor,
+                    durationSeconds,
+                    audioUid,
+                    transcriptUid,
+                  ] = response.results[0];
+                  if (slug !== canonicalSlug) {
+                    const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
+                    const beenSevenDays = secondsSinceCanonical > 7 * 24 * 60 * 60;
+
+                    args.resp.statusCode = beenSevenDays ? 301 : 302;
+                    args.resp.statusMessage = beenSevenDays ? 'Moved Permanently' : 'Found';
+                    args.resp.setHeader('Content-Encoding', 'identity');
+                    args.resp.setHeader('Location', `${routerPrefix}/${canonicalSlug}`);
+                    await finishWithEncodedServerResponse(
+                      args,
+                      'identity',
+                      Readable.from(Buffer.from(''))
+                    );
+                    throw new Error('handled');
+                  }
+
+                  const imageThumbhashDataUrl = thumbHashToDataURL(
+                    Buffer.from(imageThumbhashBase64, 'base64url')
+                  );
+                  const imageJwt = await createImageFileJWT(imageUid);
+                  const audioJwt = await createContentFileJWT(audioUid);
+                  const transcriptJwt =
+                    transcriptUid === null ? null : await createTranscriptJWT(transcriptUid);
+
+                  return {
+                    uid,
+                    slug: canonicalSlug,
+                    imageThumbhashDataUrl,
+                    backgroundImage: {
+                      uid: imageUid,
+                      jwt: imageJwt,
+                    },
+                    audio: {
+                      uid: audioUid,
+                      jwt: audioJwt,
+                    },
+                    transcriptRef:
+                      transcriptUid === null || transcriptJwt === null
+                        ? null
+                        : {
+                            uid: transcriptUid,
+                            jwt: transcriptJwt,
+                          },
+                    title,
+                    description,
+                    instructor,
+                    durationSeconds,
+                    stylesheets,
+                  };
+                } finally {
+                  canceled.cancel();
+                  args.state.cancelers.remove(handleAbort);
                 }
-              );
-
-              if (args.state.finishing) {
-                throw new Error('canceled');
-              }
-
-              if (response.results === undefined || response.results.length === 0) {
-                throw new Error('not found');
-              }
-
-              const [
-                canonicalSlug,
-                canonicalSlugSince,
-                uid,
-                title,
-                description,
-                imageThumbhashBase64,
-                imageUid,
-                instructor,
-                durationSeconds,
-                audioUid,
-                transcriptUid,
-              ] = response.results[0];
-              if (slug !== canonicalSlug) {
-                const secondsSinceCanonical = Date.now() / 1000 - canonicalSlugSince;
-                const beenSevenDays = secondsSinceCanonical > 7 * 24 * 60 * 60;
-
-                args.resp.statusCode = beenSevenDays ? 301 : 302;
-                args.resp.statusMessage = beenSevenDays ? 'Moved Permanently' : 'Found';
-                args.resp.setHeader('Content-Encoding', 'identity');
-                args.resp.setHeader('Location', `${routerPrefix}/${canonicalSlug}`);
-                await finishWithEncodedServerResponse(
-                  args,
-                  'identity',
-                  Readable.from(Buffer.from(''))
-                );
-                throw new Error('handled');
-              }
-
-              const imageThumbhashDataUrl = thumbHashToDataURL(
-                Buffer.from(imageThumbhashBase64, 'base64url')
-              );
-              const imageJwt = await createImageFileJWT(imageUid);
-              const audioJwt = await createContentFileJWT(audioUid);
-              const transcriptJwt =
-                transcriptUid === null ? null : await createTranscriptJWT(transcriptUid);
-
-              return {
-                uid,
-                slug: canonicalSlug,
-                imageThumbhashDataUrl,
-                backgroundImage: {
-                  uid: imageUid,
-                  jwt: imageJwt,
-                },
-                audio: {
-                  uid: audioUid,
-                  jwt: audioJwt,
-                },
-                transcriptRef:
-                  transcriptUid === null || transcriptJwt === null
-                    ? null
-                    : {
-                        uid: transcriptUid,
-                        jwt: transcriptJwt,
-                      },
-                title,
-                description,
-                instructor,
-                durationSeconds,
-                stylesheets,
-              };
-            } finally {
-              canceled.cancel();
-              args.state.cancelers.remove(handleAbort);
-            }
-          });
+              })
+          );
         };
       };
     },
@@ -412,7 +416,6 @@ WHERE
                       imageThumbhashDataUrl=""
                       backgroundImage={{ uid: '', jwt: '' }}
                       audio={{ uid: '', jwt: '' }}
-                      slug={slug}
                       instructor={instructor}
                       durationSeconds={durationSeconds}
                       transcriptRef={null}

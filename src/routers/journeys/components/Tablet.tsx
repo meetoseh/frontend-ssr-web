@@ -34,7 +34,7 @@ export const Tablet = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
             <Callout />
           </div>
           <div className={styles.downloadContainer}>
-            <DownloadAppLinks />
+            <DownloadAppLinks tracking />
           </div>
           <div className={styles.loginOptionsSeparatorContainer}>
             <LoginOptionsSeparator />

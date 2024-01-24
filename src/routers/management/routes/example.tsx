@@ -2,6 +2,7 @@ import { ExampleApp, ExampleAppProps } from './ExampleApp';
 import { createComponentRoutes } from '../../lib/createComponentRoutes';
 import { CommandLineArgs } from '../../../CommandLineArgs';
 import { hashElementForSitemap } from '../../sitemap/lib/hashElementForSitemap';
+import { createFakeCancelable } from '../../../lib/createFakeCancelable';
 
 // add more to this array to test parallel builds performance
 export default [1].map(
@@ -20,10 +21,11 @@ export default [1].map(
 
         return (routerPrefix) => {
           const stylesheets = unprefixedStylesheets.map((href) => `${routerPrefix}${href}`);
-          return async () => {
-            const items = [...baseItems, Math.random() < 0.5 ? 'A' : 'B'];
-            return { initialTodos: items, stylesheets };
-          };
+          return () =>
+            createFakeCancelable(async () => {
+              const items = [...baseItems, Math.random() < 0.5 ? 'A' : 'B'];
+              return { initialTodos: items, stylesheets };
+            });
         };
       },
       docs: {

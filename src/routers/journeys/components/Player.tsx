@@ -1,4 +1,4 @@
-import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
+import { ReactElement, useCallback, useEffect, useRef } from 'react';
 import styles from './Player.module.css';
 import assistiveStyles from '../../../uikit/styles/assistive.module.css';
 import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
@@ -125,13 +125,6 @@ export const Player = (
     }
   }, []);
 
-  const totalTime = useMemo(() => {
-    const minutes = Math.floor(props.durationSeconds / 60);
-    const seconds = Math.floor(props.durationSeconds % 60);
-
-    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-  }, [props.durationSeconds]);
-
   const contentTarget = useOsehContentTarget({
     uid: props.audio.uid,
     jwt: props.audio.jwt,
@@ -140,6 +133,17 @@ export const Player = (
     type: 'callbacks',
     props: () => contentTarget.get(),
     callbacks: contentTarget.callbacks,
+  });
+
+  const durationSecondsVWC = useMappedValueWithCallbacks(audioContent, (audio) => {
+    return audio.audio?.duration ?? props.durationSeconds;
+  });
+
+  const totalTime = useMappedValueWithCallbacks(durationSecondsVWC, (durationSeconds) => {
+    const minutes = Math.floor(durationSeconds / 60);
+    const seconds = Math.floor(durationSeconds % 60);
+
+    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
   });
 
   const progressVWC = useWritableValueWithCallbacks<number>(() => 0);
@@ -191,7 +195,7 @@ export const Player = (
   });
 
   const currentTranscriptPhrases = useMappedValuesWithCallbacks(
-    [closedCaptioningDesired, adjustedTranscript, progressVWC],
+    [closedCaptioningDesired, adjustedTranscript, progressVWC, durationSecondsVWC],
     (): { phrase: OsehTranscriptPhrase; id: number }[] => {
       if (closedCaptioningDesired.get() === 'none') {
         return [];
@@ -204,7 +208,9 @@ export const Player = (
 
       const phrases = transcriptRaw.transcript.phrases;
       const progress = progressVWC.get();
-      const progressSeconds = progress * props.durationSeconds;
+      const durationSeconds = durationSecondsVWC.get();
+
+      const progressSeconds = progress * durationSeconds;
       const hint = transcriptSearchIndexHint.current;
 
       if (hint.progressSeconds > progressSeconds) {
@@ -377,6 +383,14 @@ export const Player = (
     );
   }, []);
 
+  const progressAndDurationVWC = useMappedValuesWithCallbacks(
+    [progressVWC, durationSecondsVWC],
+    () => ({
+      progress: progressVWC.get(),
+      durationSeconds: durationSecondsVWC.get(),
+    })
+  );
+
   return (
     <div className={styles.container} ref={containerRef}>
       <div className={styles.background}>
@@ -449,7 +463,7 @@ export const Player = (
                           <TranscriptPhrase
                             phrase={phrase}
                             progress={progressVWC}
-                            durationSeconds={props.durationSeconds}
+                            durationSeconds={durationSecondsVWC}
                             key={id}>
                             {phrase.phrase}
                           </TranscriptPhrase>
@@ -517,9 +531,9 @@ export const Player = (
           <div className={styles.durationContainer}>
             <div className={styles.currentTime}>
               <RenderGuardedComponent
-                props={progressVWC}
-                component={(progress) => {
-                  const inSeconds = Math.floor(props.durationSeconds * progress);
+                props={progressAndDurationVWC}
+                component={({ durationSeconds, progress }) => {
+                  const inSeconds = Math.floor(durationSeconds * progress);
                   const minutes = Math.floor(inSeconds / 60);
                   const seconds = Math.floor(inSeconds) % 60;
 
@@ -532,7 +546,10 @@ export const Player = (
                 }}
               />
             </div>
-            <div className={styles.totalTime}>{totalTime}</div>
+            <RenderGuardedComponent
+              props={totalTime}
+              component={(totalTime) => <div className={styles.totalTime}>{totalTime}</div>}
+            />
           </div>
         </div>
       </div>
@@ -543,21 +560,18 @@ export const Player = (
 const TranscriptPhrase = (
   props: React.PropsWithChildren<{
     progress: ValueWithCallbacks<number>;
-    durationSeconds: number;
+    durationSeconds: ValueWithCallbacks<number>;
     phrase: OsehTranscriptPhrase;
   }>
 ): ReactElement => {
   const ele = useRef<HTMLDivElement>(null);
-  const opacityTarget = useMappedValueWithCallbacks(
-    props.progress,
-    useCallback(
-      (progress) => {
-        const progressSeconds = progress * props.durationSeconds;
-        const timeUntilEnd = props.phrase.endsAt + holdLateSeconds - progressSeconds;
-        return timeUntilEnd < fadeTimeSeconds ? 0 : 1;
-      },
-      [props.durationSeconds, props.phrase]
-    )
+  const opacityTarget = useMappedValuesWithCallbacks(
+    [props.progress, props.durationSeconds],
+    useCallback(() => {
+      const progressSeconds = props.progress.get() * props.durationSeconds.get();
+      const timeUntilEnd = props.phrase.endsAt + holdLateSeconds - progressSeconds;
+      return timeUntilEnd < fadeTimeSeconds ? 0 : 1;
+    }, [props.phrase])
   );
 
   const target = useAnimatedValueWithCallbacks<{ opacity: number }>(
