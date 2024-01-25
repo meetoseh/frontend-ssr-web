@@ -401,6 +401,7 @@ ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
                 ) {
                   // iMessage can only handle 1 meta image
                   if (metaImages.length > 1) {
+                    metaImages.sort((a, b) => b.width * b.height - a.width * a.height);
                     metaImages.splice(1, metaImages.length - 1);
                   }
                 }
