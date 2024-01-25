@@ -399,9 +399,11 @@ ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
                   userAgentLower.includes('twitterbot') &&
                   userAgentLower.includes('facebookexternalhit')
                 ) {
-                  // iMessage can only handle 1 meta image
+                  // iMessage can only handle 1 meta image and prefers square
                   if (metaImages.length > 1) {
-                    metaImages.sort((a, b) => b.width * b.height - a.width * a.height);
+                    metaImages.sort(
+                      (a, b) => Math.abs(a.width / a.height - 1) - Math.abs(b.width / b.height - 1)
+                    );
                     metaImages.splice(1, metaImages.length - 1);
                   }
                 }
