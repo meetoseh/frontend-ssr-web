@@ -382,6 +382,30 @@ ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
                 })
                 .exec();
 
+              const metaImages =
+                shareImageJwt === null
+                  ? []
+                  : shareImageFileExports.map((metaImage) => ({
+                      url: `${process.env.ROOT_BACKEND_URL}/api/1/image_files/image/${metaImage.exportUid}.${metaImage.format}?jwt=${shareImageJwt}`,
+                      width: metaImage.width,
+                      height: metaImage.height,
+                      type: metaImage.type,
+                    }));
+
+              const userAgent = args.req.headers['user-agent'];
+              if (userAgent !== undefined) {
+                const userAgentLower = userAgent.toLowerCase();
+                if (
+                  userAgentLower.includes('twitterbot') &&
+                  userAgentLower.includes('facebookexternalhit')
+                ) {
+                  // iMessage can only handle 1 meta image
+                  if (metaImages.length > 1) {
+                    metaImages.splice(1, metaImages.length - 1);
+                  }
+                }
+              }
+
               return {
                 code,
                 viewUid,
@@ -421,15 +445,7 @@ ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
                   },
                 },
                 stylesheets,
-                metaImages:
-                  shareImageJwt === null
-                    ? []
-                    : shareImageFileExports.map((metaImage) => ({
-                        url: `${process.env.ROOT_BACKEND_URL}/api/1/image_files/image/${metaImage.exportUid}.${metaImage.format}?jwt=${shareImageJwt}`,
-                        width: metaImage.width,
-                        height: metaImage.height,
-                        type: metaImage.type,
-                      })),
+                metaImages,
               };
             })
           );
