@@ -16,6 +16,7 @@ import { createImageFileJWT } from '../../../lib/createImageFileJWT';
 import { createContentFileJWT } from '../../../lib/createContentFileJWT';
 import { thumbHashToDataURL } from 'thumbhash';
 import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
+import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 
 export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<ShareLinkProps>({
@@ -93,6 +94,7 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                   code: code,
                   journey: undefined,
                   stylesheets,
+                  metaImages: [],
                 };
               }
 
@@ -112,6 +114,7 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                   code: code,
                   journey: undefined,
                   stylesheets,
+                  metaImages: [],
                 };
               } else {
                 console.log(
@@ -133,8 +136,10 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
               const doAbort = () => abortController.abort();
               args.state.cancelers.add(doAbort);
 
-              const response = await cursor.execute(
-                `
+              const responses = await cursor.executeUnified3(
+                [
+                  [
+                    `
   SELECT
     journey_slugs.slug,
     journeys.uid,
@@ -215,12 +220,37 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
     AND journeys.deleted_at IS NULL
     AND journeys.special_category IS NULL
     ${/* we purposely are allowing courses */ ''}
-                  `,
-                [code],
+                    `,
+                    [code],
+                  ],
+                  [
+                    `
+SELECT
+  image_files.uid,
+  image_file_exports.uid,
+  image_file_exports.width,
+  image_file_exports.height,
+  image_file_exports.format
+FROM journey_share_links, journeys, image_files, image_file_exports
+WHERE
+  journey_share_links.code = ?
+  AND journeys.deleted_at IS NULL
+  AND journeys.special_category IS NULL
+  AND journey_share_links.journey_id = journeys.id
+  AND journeys.share_image_file_id = image_files.id
+  AND image_file_exports.image_file_id = image_files.id
+ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
+                    `,
+                    [code],
+                  ],
+                ],
                 {
                   signal: abortController.signal,
                 }
               );
+
+              const response = responses.items[0];
+              const metaImagesResponse = responses.items[1];
 
               args.state.cancelers.remove(doAbort);
 
@@ -289,6 +319,7 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                   viewUid,
                   journey: null,
                   stylesheets,
+                  metaImages: [],
                 };
               }
 
@@ -306,14 +337,30 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                 journeySubcategoryInternalName,
                 linkUid,
               ] = response.results[0];
+              const shareImageFileUid = metaImagesResponse.results?.[0]?.[0] as string | undefined;
+              const shareImageFileExports: (Omit<OpenGraphMetaImage, 'url'> & {
+                exportUid: string;
+                format: string;
+              })[] = (
+                metaImagesResponse.results === undefined ? [] : metaImagesResponse.results
+              ).map(([, exportUid, width, height, format]) => ({
+                exportUid: exportUid as string,
+                width: width as number,
+                height: height as number,
+                format: format as string,
+                type: `image/${format}`,
+              }));
 
               const imageThumbhashDataUrl = thumbHashToDataURL(
                 Buffer.from(imageThumbhashBase64, 'base64url')
               );
-              const [imageJwt, audioJwt, transcriptJwt] = await Promise.all([
+              const [imageJwt, audioJwt, transcriptJwt, shareImageJwt] = await Promise.all([
                 createImageFileJWT(imageFileUid),
                 createContentFileJWT(audioContentFileUid),
                 transcriptUid === null ? Promise.resolve(null) : createTranscriptJWT(transcriptUid),
+                shareImageFileUid === undefined
+                  ? Promise.resolve(null)
+                  : createImageFileJWT(shareImageFileUid),
               ]);
 
               linkStats.incrViewHydrated({
@@ -374,6 +421,15 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                   },
                 },
                 stylesheets,
+                metaImages:
+                  shareImageJwt === null
+                    ? []
+                    : shareImageFileExports.map((metaImage) => ({
+                        url: `${process.env.ROOT_BACKEND_URL}/api/1/image_files/image/${metaImage.exportUid}.${metaImage.format}?jwt=${shareImageJwt}`,
+                        width: metaImage.width,
+                        height: metaImage.height,
+                        type: metaImage.type,
+                      })),
               };
             })
           );

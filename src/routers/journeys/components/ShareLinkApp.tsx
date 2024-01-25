@@ -1,4 +1,4 @@
-import { ReactElement, useContext, useEffect, useRef } from 'react';
+import { Fragment, ReactElement, useContext, useEffect, useRef } from 'react';
 import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
 import { OsehTranscriptRef } from '../../../uikit/transcripts/OsehTranscriptRef';
@@ -22,6 +22,7 @@ import { keyMap as journeyKeyMap } from '../lib/Journeys';
 import { useMappedValueWithCallbacks } from '../../../uikit/hooks/useMappedValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { sendPlausibleEvent } from '../../../uikit/lib/sendPlausibleEvent';
+import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 
 type ShareLinkJourney = {
   /**
@@ -111,6 +112,11 @@ export type ShareLinkProps = {
   journey: ShareLinkJourney | null | undefined;
 
   /**
+   * The meta images for this page, if any
+   */
+  metaImages: OpenGraphMetaImage[];
+
+  /**
    * The stylesheets required for this page, created by webpack
    */
   stylesheets: string[];
@@ -176,6 +182,14 @@ export const ShareLinkApp = (props: ShareLinkProps): ReactElement => {
                 : props.journey.description
           }
         />
+        {props.metaImages.map((image, i) => (
+          <Fragment key={i}>
+            <meta property="og:image" content={image.url} />
+            <meta property="og:image:width" content={image.width.toString()} />
+            <meta property="og:image:height" content={image.height.toString()} />
+            <meta property="og:image:type" content={image.type} />
+          </Fragment>
+        ))}
         <link rel="apple-touch-icon" href={`${rootFrontendUrl}/apple-touch-icon.png`} />
         <link rel="manifest" href={`${rootFrontendUrl}/manifest.json`} />
         <link rel="stylesheet" href="/fonts.css" />
@@ -204,7 +218,9 @@ export const ShareLinkApp = (props: ShareLinkProps): ReactElement => {
   );
 };
 
-export const ShareLinkAppBody = (props: Omit<ShareLinkProps, 'stylesheets'>): ReactElement => {
+export const ShareLinkAppBody = (
+  props: Omit<ShareLinkProps, 'stylesheets' | 'metaImages'>
+): ReactElement => {
   const modalContext = useContext(ModalContext);
   const loginContextRaw = useContext(LoginContext);
   const journeyVWC = useWritableValueWithCallbacks<ShareLinkJourney | null | undefined>(
