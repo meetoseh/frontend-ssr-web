@@ -18,6 +18,8 @@ import {
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { setVWC } from '../../../uikit/lib/setVWC';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
+import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
+import { OpenGraphMetaImages } from '../../../uikit/components/OpenGraphMetaImages';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -70,6 +72,11 @@ export type SharedUnlockedClassProps = {
    * The audio for the journey
    */
   audio: OsehContentRef;
+
+  /**
+   * The meta images for this page, if any
+   */
+  metaImages: OpenGraphMetaImage[];
 
   /**
    * The stylesheets required for this page, created by webpack
@@ -129,6 +136,7 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
         <meta property="og:title" content={props.title} />
         <meta property="og:url" content={`${rootFrontendUrl}/shared/${props.slug}`} />
         <meta property="og:type" content="website" />
+        <OpenGraphMetaImages images={props.metaImages} />
         <meta name="description" property="og:description" content={props.description} />
         <link rel="apple-touch-icon" href={`${rootFrontendUrl}/apple-touch-icon.png`} />
         <link rel="manifest" href={`${rootFrontendUrl}/manifest.json`} />
@@ -158,7 +166,7 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
 
 export type SharedUnlockedClassBodyDelegateProps = Omit<
   SharedUnlockedClassProps,
-  'stylesheets' | 'slug'
+  'stylesheets' | 'slug' | 'metaImages'
 > & {
   signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
   transcript: ValueWithCallbacks<OsehTranscriptResult>;
@@ -167,7 +175,7 @@ export type SharedUnlockedClassBodyDelegateProps = Omit<
  * Renders the meaningful content that describes and plays the specific class.
  */
 export const SharedUnlockedClassBody = (
-  props: Omit<SharedUnlockedClassProps, 'stylesheets' | 'slug'>
+  props: Omit<SharedUnlockedClassProps, 'stylesheets' | 'slug' | 'metaImages'>
 ) => {
   const modalContext = useContext(ModalContext);
   const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [

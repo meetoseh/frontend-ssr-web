@@ -21,6 +21,8 @@ import { createImageFileJWT } from '../../../lib/createImageFileJWT';
 import { createContentFileJWT } from '../../../lib/createContentFileJWT';
 import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
 import { createFakeCancelable } from '../../../lib/createFakeCancelable';
+import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
+import { filterMetaImagesForUserAgent } from '../../../uikit/lib/filterMetaImagesForUserAgent';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -110,7 +112,7 @@ WHERE
 
           return withItgsCancelable(
             (itgs): CancelablePromise<SharedUnlockedClassProps> =>
-              createFakeCancelable(async () => {
+              createFakeCancelable(async (): Promise<SharedUnlockedClassProps> => {
                 const conn = await itgs.conn();
                 const cursor = conn.cursor('none');
                 const canceled = createCancelablePromiseFromCallbacks(args.state.cancelers);
@@ -128,8 +130,10 @@ WHERE
                 args.state.cancelers.add(handleAbort);
 
                 try {
-                  const response = await cursor.execute(
-                    `
+                  const allResponses = await cursor.executeUnified3(
+                    [
+                      [
+                        `
 SELECT
   canonical_journey_slugs.slug,
   canonical_journey_slugs.primary_at,
@@ -200,8 +204,30 @@ WHERE
   )
   AND content_files.id = journeys.audio_content_file_id
   AND instructors.id = journeys.instructor_id
-                `,
-                    [slug],
+                        `,
+                        [slug],
+                      ],
+                      [
+                        `
+    SELECT
+      image_files.uid,
+      image_file_exports.uid,
+      image_file_exports.width,
+      image_file_exports.height,
+      image_file_exports.format
+    FROM journey_slugs, journeys, image_files, image_file_exports
+    WHERE
+      journey_slugs.slug = ?
+      AND journeys.id = journey_slugs.journey_id
+      AND journeys.deleted_at IS NULL
+      AND journeys.special_category IS NULL
+      AND journeys.share_image_file_id = image_files.id
+      AND image_file_exports.image_file_id = image_files.id
+    ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
+                        `,
+                        [slug],
+                      ],
+                    ],
                     {
                       signal: abortSignal,
                     }
@@ -211,6 +237,8 @@ WHERE
                     throw new Error('canceled');
                   }
 
+                  const response = allResponses.items[0];
+                  const metaImagesResponse = allResponses.items[1];
                   if (response.results === undefined || response.results.length === 0) {
                     throw new Error('not found');
                   }
@@ -244,6 +272,22 @@ WHERE
                     throw new Error('handled');
                   }
 
+                  const shareImageFileUid = metaImagesResponse.results?.[0]?.[0] as
+                    | string
+                    | undefined;
+                  const shareImageFileExports: (Omit<OpenGraphMetaImage, 'url'> & {
+                    exportUid: string;
+                    format: string;
+                  })[] = (
+                    metaImagesResponse.results === undefined ? [] : metaImagesResponse.results
+                  ).map(([, exportUid, width, height, format]) => ({
+                    exportUid: exportUid as string,
+                    width: width as number,
+                    height: height as number,
+                    format: format as string,
+                    type: `image/${format}`,
+                  }));
+
                   const imageThumbhashDataUrl = thumbHashToDataURL(
                     Buffer.from(imageThumbhashBase64, 'base64url')
                   );
@@ -251,11 +295,26 @@ WHERE
                   const audioJwt = await createContentFileJWT(audioUid);
                   const transcriptJwt =
                     transcriptUid === null ? null : await createTranscriptJWT(transcriptUid);
+                  const shareImageJwt =
+                    shareImageFileUid === undefined
+                      ? null
+                      : await createImageFileJWT(shareImageFileUid);
+                  const metaImages =
+                    shareImageJwt === null
+                      ? []
+                      : shareImageFileExports.map((metaImage) => ({
+                          url: `${process.env.ROOT_BACKEND_URL}/api/1/image_files/image/${metaImage.exportUid}.${metaImage.format}?jwt=${shareImageJwt}`,
+                          width: metaImage.width,
+                          height: metaImage.height,
+                          type: metaImage.type,
+                        }));
+                  filterMetaImagesForUserAgent(metaImages, args.req.headers['user-agent']);
 
                   return {
                     uid,
                     slug: canonicalSlug,
                     imageThumbhashDataUrl,
+                    metaImages,
                     backgroundImage: {
                       uid: imageUid,
                       jwt: imageJwt,

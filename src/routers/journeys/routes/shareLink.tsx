@@ -17,6 +17,7 @@ import { createContentFileJWT } from '../../../lib/createContentFileJWT';
 import { thumbHashToDataURL } from 'thumbhash';
 import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
+import { filterMetaImagesForUserAgent } from '../../../uikit/lib/filterMetaImagesForUserAgent';
 
 export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<ShareLinkProps>({
@@ -391,23 +392,7 @@ ORDER BY image_file_exports.width DESC, image_file_exports.height DESC
                       height: metaImage.height,
                       type: metaImage.type,
                     }));
-
-              const userAgent = args.req.headers['user-agent'];
-              if (userAgent !== undefined) {
-                const userAgentLower = userAgent.toLowerCase();
-                if (
-                  userAgentLower.includes('twitterbot') &&
-                  userAgentLower.includes('facebookexternalhit')
-                ) {
-                  // iMessage can only handle 1 meta image and prefers square
-                  if (metaImages.length > 1) {
-                    metaImages.sort(
-                      (a, b) => Math.abs(a.width / a.height - 1) - Math.abs(b.width / b.height - 1)
-                    );
-                    metaImages.splice(1, metaImages.length - 1);
-                  }
-                }
-              }
+              filterMetaImagesForUserAgent(metaImages, args.req.headers['user-agent']);
 
               return {
                 code,

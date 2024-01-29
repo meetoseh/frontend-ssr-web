@@ -1,4 +1,4 @@
-import { Fragment, ReactElement, useContext, useEffect, useRef } from 'react';
+import { ReactElement, useContext, useEffect, useRef } from 'react';
 import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
 import { OsehTranscriptRef } from '../../../uikit/transcripts/OsehTranscriptRef';
@@ -23,6 +23,7 @@ import { useMappedValueWithCallbacks } from '../../../uikit/hooks/useMappedValue
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { sendPlausibleEvent } from '../../../uikit/lib/sendPlausibleEvent';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
+import { OpenGraphMetaImages } from '../../../uikit/components/OpenGraphMetaImages';
 
 type ShareLinkJourney = {
   /**
@@ -182,14 +183,7 @@ export const ShareLinkApp = (props: ShareLinkProps): ReactElement => {
                 : props.journey.description
           }
         />
-        {props.metaImages.map((image, i) => (
-          <Fragment key={i}>
-            <meta property="og:image" content={image.url} />
-            <meta property="og:image:width" content={image.width.toString()} />
-            <meta property="og:image:height" content={image.height.toString()} />
-            <meta property="og:image:type" content={image.type} />
-          </Fragment>
-        ))}
+        <OpenGraphMetaImages images={props.metaImages} />
         <link rel="apple-touch-icon" href={`${rootFrontendUrl}/apple-touch-icon.png`} />
         <link rel="manifest" href={`${rootFrontendUrl}/manifest.json`} />
         <link rel="stylesheet" href="/fonts.css" />
