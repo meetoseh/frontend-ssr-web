@@ -13,6 +13,8 @@ import { createCancelablePromiseFromCallbacks } from './createCancelablePromiseF
 import { colorNow } from '../logging';
 import { inspect } from 'util';
 import chalk from 'chalk';
+import os from 'os';
+import { sendMessageTo } from '../slack';
 
 /**
  * Lazily initialized integrations to just about everything. Should only be
@@ -61,7 +63,24 @@ class Itgs {
         const rqliteIps = rqliteIpsRaw.split(',');
         const rqliteHosts = rqliteIps.map((ip) => `http://${ip}:4001`);
 
-        this._rqdb = new RqliteConnection(rqliteHosts);
+        this._rqdb = new RqliteConnection(rqliteHosts, {
+          log: {
+            slowQuery: {
+              enabled: true,
+              thresholdSeconds: 0.5,
+              method: (query, details) =>
+                sendMessageTo(
+                  'web-errors',
+                  `frontend-ssr-web ${os.hostname()} slow query:\n\n` +
+                    '```\n' +
+                    inspect(query.operations, { colors: false }) +
+                    '\n```\n took ' +
+                    details.durationSeconds.toLocaleString('en-US', { maximumFractionDigits: 3 }) +
+                    's'
+                ),
+            },
+          },
+        });
       }).promise;
       this.checkClosed();
       if (this._rqdb === undefined) {

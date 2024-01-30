@@ -114,7 +114,7 @@ WHERE
             (itgs): CancelablePromise<SharedUnlockedClassProps> =>
               createFakeCancelable(async (): Promise<SharedUnlockedClassProps> => {
                 const conn = await itgs.conn();
-                const cursor = conn.cursor('none');
+                const cursor = conn.cursor('weak'); // none once https://github.com/rqlite/rqlite/issues/1648 is resolved
                 const canceled = createCancelablePromiseFromCallbacks(args.state.cancelers);
                 canceled.promise.catch(() => {});
                 if (args.state.finishing) {

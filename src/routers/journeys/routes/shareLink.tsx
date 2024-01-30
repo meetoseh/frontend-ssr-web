@@ -132,7 +132,7 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
                 throw new Error('canceled');
               }
 
-              const cursor = conn.cursor('none');
+              const cursor = conn.cursor('weak'); // none once https://github.com/rqlite/rqlite/issues/1648 is resolved
               const abortController = new AbortController();
               const doAbort = () => abortController.abort();
               args.state.cancelers.add(doAbort);
