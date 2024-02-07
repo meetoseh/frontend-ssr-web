@@ -1,4 +1,4 @@
-import { ReactElement, useContext, useEffect, useRef } from 'react';
+import { PropsWithChildren, ReactElement, useContext, useEffect, useRef } from 'react';
 import styles from './SharedUnlockClassApp.module.css';
 import { Tablet } from './Tablet';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
@@ -94,7 +94,6 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
     process.env.CLIENT_VISIBLE_ROOT_FRONTEND_URL ?? process.env.ROOT_FRONTEND_URL;
 
   const modals = useWritableValueWithCallbacks<Modals>(() => []);
-  useVisitorValueWithCallbacks(undefined);
 
   const backgroundRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -155,7 +154,9 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
             <div className={styles.background} ref={backgroundRef} />
             <div className={styles.contentContainer}>
               <ModalContext.Provider value={{ modals }}>
-                <SharedUnlockedClassBody {...props} />
+                <VisitorWrapper>
+                  <SharedUnlockedClassBody {...props} />
+                </VisitorWrapper>
               </ModalContext.Provider>
             </div>
           </div>
@@ -164,6 +165,11 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
       </body>
     </html>
   );
+};
+
+const VisitorWrapper = ({ children }: PropsWithChildren<object>) => {
+  useVisitorValueWithCallbacks(undefined);
+  return children;
 };
 
 export type SharedUnlockedClassBodyDelegateProps = Omit<
