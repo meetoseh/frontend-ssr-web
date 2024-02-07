@@ -20,6 +20,7 @@ import { setVWC } from '../../../uikit/lib/setVWC';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 import { OpenGraphMetaImages } from '../../../uikit/components/OpenGraphMetaImages';
+import { useVisitorValueWithCallbacks } from '../../../uikit/hooks/useVisitorValueWithCallbacks';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -93,6 +94,7 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
     process.env.CLIENT_VISIBLE_ROOT_FRONTEND_URL ?? process.env.ROOT_FRONTEND_URL;
 
   const modals = useWritableValueWithCallbacks<Modals>(() => []);
+  useVisitorValueWithCallbacks(undefined);
 
   const backgroundRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
