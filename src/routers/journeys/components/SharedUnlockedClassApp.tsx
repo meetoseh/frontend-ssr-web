@@ -21,6 +21,7 @@ import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 import { OpenGraphMetaImages } from '../../../uikit/components/OpenGraphMetaImages';
 import { useVisitorValueWithCallbacks } from '../../../uikit/hooks/useVisitorValueWithCallbacks';
+import { LoginProvider } from '../../../uikit/contexts/LoginContext';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -154,9 +155,11 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
             <div className={styles.background} ref={backgroundRef} />
             <div className={styles.contentContainer}>
               <ModalContext.Provider value={{ modals }}>
-                <VisitorWrapper>
-                  <SharedUnlockedClassBody {...props} />
-                </VisitorWrapper>
+                <LoginProvider>
+                  <VisitorWrapper>
+                    <SharedUnlockedClassBody {...props} />
+                  </VisitorWrapper>
+                </LoginProvider>
               </ModalContext.Provider>
             </div>
           </div>
