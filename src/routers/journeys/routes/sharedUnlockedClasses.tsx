@@ -23,6 +23,7 @@ import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
 import { createFakeCancelable } from '../../../lib/createFakeCancelable';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 import { filterMetaImagesForUserAgent } from '../../../uikit/lib/filterMetaImagesForUserAgent';
+import { SERIES_FLAGS } from '../lib/SeriesFlags';
 
 export const sharedUnlockedClasses = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<SharedUnlockedClassProps>({
@@ -65,11 +66,14 @@ WHERE
   AND journeys.deleted_at IS NULL
   AND journeys.special_category IS NULL
   AND NOT EXISTS (
-    SELECT 1 FROM course_journeys
-    WHERE course_journeys.journey_id = journeys.id
+    SELECT 1 FROM course_journeys, courses
+    WHERE 
+      course_journeys.journey_id = journeys.id
+      AND course_journeys.course_id = courses.id
+      AND (courses.flags & ?) = 0
   )
                   `,
-                  [slug],
+                  [slug, SERIES_FLAGS.JOURNEYS_IN_SERIES_PUBLIC_SHAREABLE],
                   {
                     signal: abortSignal,
                   }
@@ -180,8 +184,11 @@ WHERE
   AND journeys.deleted_at IS NULL
   AND journeys.special_category IS NULL
   AND NOT EXISTS (
-    SELECT 1 FROM course_journeys
-    WHERE course_journeys.journey_id = journeys.id
+    SELECT 1 FROM course_journeys, courses
+    WHERE 
+      course_journeys.journey_id = journeys.id
+      AND course_journeys.course_id = courses.id
+      AND (courses.flags & ?) = 0
   )
   AND EXISTS (
     SELECT 1 FROM journey_slugs
@@ -205,7 +212,7 @@ WHERE
   AND content_files.id = journeys.audio_content_file_id
   AND instructors.id = journeys.instructor_id
                         `,
-                        [slug],
+                        [SERIES_FLAGS.JOURNEYS_IN_SERIES_PUBLIC_SHAREABLE, slug],
                       ],
                       [
                         `
@@ -411,8 +418,11 @@ WHERE
     AND journeys.deleted_at IS NULL
     AND journeys.special_category IS NULL
     AND NOT EXISTS (
-      SELECT 1 FROM course_journeys
-      WHERE course_journeys.journey_id = journey_slugs.journey_id
+      SELECT 1 FROM course_journeys, courses
+      WHERE 
+        course_journeys.journey_id = journey_slugs.journey_id
+        AND course_journeys.course_id = courses.id
+        AND (courses.flags & ?) = 0
     )
     AND (
       journeys.variation_of_journey_id IS NULL 
@@ -447,7 +457,7 @@ WHERE
   ORDER BY journey_slugs.slug ASC
   LIMIT 100
                   `,
-                  [lastSlug, lastSlug],
+                  [lastSlug, lastSlug, SERIES_FLAGS.JOURNEYS_IN_SERIES_PUBLIC_SHAREABLE],
                   {
                     signal: abortSignal,
                   }

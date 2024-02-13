@@ -1,0 +1,17 @@
+/**
+ * Bit flags for the `courses.flags` column; see
+ * backend/docs/db/courses.md for more information.
+ */
+export const SERIES_FLAGS = {
+  JOURNEYS_IN_SERIES_PUBLIC_SHAREABLE: 1,
+  JOURNEYS_IN_SERIES_CODE_SHAREABLE: 1 << 1,
+  SERIES_PUBLIC_SHAREABLE: 1 << 2,
+  SERIES_CODE_SHAREABLE: 1 << 3,
+  SERIES_VISIBLE_IN_OWNED: 1 << 4,
+  JOURNEYS_IN_SERIES_IN_HISTORY: 1 << 5,
+  SERIES_IN_SERIES_TAB: 1 << 6,
+  JOURNEYS_IN_SERIES_ARE_1MINUTE: 1 << 7,
+  JOURNEYS_IN_SERIES_ARE_PREMIUM: 1 << 8,
+  SERIES_ATTACHABLE_FOR_FREE: 1 << 9,
+  SERIES_IN_ADMIN_AREA: 1 << 10,
+} as const;

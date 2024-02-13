@@ -18,6 +18,7 @@ import { thumbHashToDataURL } from 'thumbhash';
 import { createTranscriptJWT } from '../../../lib/createTranscriptJWT';
 import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 import { filterMetaImagesForUserAgent } from '../../../uikit/lib/filterMetaImagesForUserAgent';
+import { SERIES_FLAGS } from '../lib/SeriesFlags';
 
 export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> =>
   createComponentRoutes<ShareLinkProps>({
@@ -220,9 +221,15 @@ export const shareLink = async (args: CommandLineArgs): Promise<PendingRoute[]> 
     )
     AND journeys.deleted_at IS NULL
     AND journeys.special_category IS NULL
-    ${/* we purposely are allowing courses */ ''}
+    AND NOT EXISTS (
+      SELECT 1 FROM course_journeys, courses
+      WHERE
+        course_journeys.journey_id = journeys.id
+        AND course_journeys.course_id = courses.id
+        AND (courses.flags & ?) = 0
+    )
                     `,
-                    [code],
+                    [code, SERIES_FLAGS.JOURNEYS_IN_SERIES_CODE_SHAREABLE],
                   ],
                   [
                     `
