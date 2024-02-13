@@ -4,8 +4,6 @@ import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
 import { Player } from './Player';
 import { ValueProps } from './ValueProps';
 import { Callout } from './Callout';
-import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
-import { LoginOptionsSeparator } from '../../../uikit/components/LoginOptionsSeparator';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import { ProvidersList } from '../../../uikit/components/ProvidersList';
 
@@ -24,12 +22,12 @@ export const Mobile = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
       <div className={styles.calloutContainer}>
         <Callout />
       </div>
-      <div className={styles.downloadContainer}>
+      {/* <div className={styles.downloadContainer}>
         <DownloadAppLinks tracking />
       </div>
       <div className={styles.loginOptionsSeparatorContainer}>
         <LoginOptionsSeparator />
-      </div>
+      </div> */}
       <div className={styles.providerListContainer}>
         <RenderGuardedComponent
           props={props.signInUrls}

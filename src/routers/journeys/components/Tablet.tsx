@@ -5,8 +5,6 @@ import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
 import { ValueProps } from './ValueProps';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import { Callout } from './Callout';
-import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
-import { LoginOptionsSeparator } from '../../../uikit/components/LoginOptionsSeparator';
 import { ProvidersList } from '../../../uikit/components/ProvidersList';
 import { Player } from './Player';
 
@@ -33,12 +31,12 @@ export const Tablet = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
           <div className={styles.calloutContainer}>
             <Callout />
           </div>
-          <div className={styles.downloadContainer}>
+          {/* <div className={styles.downloadContainer}>
             <DownloadAppLinks tracking />
           </div>
           <div className={styles.loginOptionsSeparatorContainer}>
             <LoginOptionsSeparator />
-          </div>
+          </div> */}
           <div className={styles.providerListContainer}>
             <RenderGuardedComponent
               props={props.signInUrls}
