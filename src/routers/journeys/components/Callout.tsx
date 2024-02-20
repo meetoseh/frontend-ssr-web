@@ -7,10 +7,8 @@ import styles from './Callout.module.css';
 export const Callout = (): ReactElement => {
   return (
     <div className={styles.container}>
-      <div className={styles.title}>
-        Access hundreds of minute-long mindfulness classes for free
-      </div>
-      <div className={styles.subtitle}>No credit card required</div>
+      <div className={styles.title}>Reduce anxiety, reclaim your calm</div>
+      <div className={styles.subtitle}>Free, no credit card required</div>
     </div>
   );
 };

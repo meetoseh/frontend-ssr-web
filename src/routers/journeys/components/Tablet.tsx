@@ -22,7 +22,7 @@ export const Tablet = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
       </div>
       <div className={styles.content}>
         <div className={styles.leftColumn}>
-          <Player {...props} placeholderWidth="375px" placeholderHeight="667px" />
+          <Player {...props} header={false} />
         </div>
         <div className={styles.rightColumn}>
           <div className={styles.valuePropsContainer}>

@@ -51,8 +51,7 @@ const maximumAdjustmentToAvoidMultipleOnScreen = holdLateSeconds + 1;
  */
 export const Player = (
   props: SharedUnlockedClassBodyDelegateProps & {
-    placeholderWidth: string;
-    placeholderHeight: string;
+    header: boolean;
   }
 ): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -406,14 +405,16 @@ export const Player = (
         />
       </div>
       <div className={styles.foreground}>
-        <div className={styles.header}>
-          <div className={styles.wordmarkContainer}>
-            <a className={styles.wordmark} href="https://www.oseh.com">
-              <div className={styles.iconWordmark} />
-              <div className={assistiveStyles.srOnly}>Oseh</div>
-            </a>
+        {props.header && (
+          <div className={styles.header}>
+            <div className={styles.wordmarkContainer}>
+              <a className={styles.wordmark} href="https://www.oseh.com">
+                <div className={styles.iconWordmark} />
+                <div className={assistiveStyles.srOnly}>Oseh</div>
+              </a>
+            </div>
           </div>
-        </div>
+        )}
         <div className={styles.spacer} />
         <div className={styles.playContainer}>
           <button type="button" className={styles.playButton} onClick={onPlayButtonClick}>

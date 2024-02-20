@@ -22,7 +22,10 @@
 }
 
 .header {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
 }
 
 .spacer {
@@ -262,51 +265,38 @@
   line-height: 130%;
 }
 
-@media screen and (max-width: 844px) {
-  .header {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-  }
+.wordmarkContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 19.79%, rgba(0, 0, 0, 0) 100%);
+  padding-top: 20px;
+  width: 100%;
+}
 
-  .spacer {
-    display: none;
-  }
+.wordmark {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-  .wordmarkContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 19.79%, rgba(0, 0, 0, 0) 100%);
-    padding-top: 20px;
-    width: 100%;
-  }
-
-  .wordmark {
-    border: none;
-    border-radius: 0;
-    background: none;
-    padding: 0;
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-tap-highlight-color: transparent;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .iconWordmark {
-    background: no-repeat center center;
-    display: inline-block;
-    vertical-align: middle;
-    content: '';
-    width: 87px;
-    height: 20px;
-    background-size: 100% 100%;
-    background-image: url('../assets/Oseh_Wordmark_White.svg');
-  }
+.iconWordmark {
+  background: no-repeat center center;
+  display: inline-block;
+  vertical-align: middle;
+  content: '';
+  width: 87px;
+  height: 20px;
+  background-size: 100% 100%;
+  background-image: url('../assets/Oseh_Wordmark_White.svg');
 }
 
 @media screen and (min-width: 845px) {
