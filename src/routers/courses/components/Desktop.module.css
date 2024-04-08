@@ -1,0 +1,175 @@
+.placeholder {
+  width: min(66.66666666vw, 100vh);
+  height: min(50vw, 75vh);
+}
+
+.header {
+  display: grid;
+  grid-template: 1fr / 3fr auto 1fr auto 4fr;
+  align-items: center;
+  width: 100%;
+  margin-top: 60px;
+}
+
+.heroContainer {
+  grid-area: 1 / 2 / span 1 / span 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heroContainer img {
+  border-radius: 10px;
+}
+
+.headerRight {
+  grid-area: 1 / 4 / span 1 / span 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 48px;
+}
+
+.title {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 33.6px;
+  color: white;
+}
+
+.instructor {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 20.4px;
+  color: #eaeaeb;
+  margin-top: 5px;
+}
+
+.description {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #eaeaeb;
+  margin-top: 20px;
+  max-width: 390px;
+}
+
+.providerListContainer {
+  width: 100%;
+  margin-top: 48px;
+  max-width: 390px;
+}
+
+.content {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 64px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.player {
+  display: grid;
+  grid-template: 1fr / 1fr;
+}
+
+.introVideo {
+  grid-area: 1 / 1 / 1 / 1;
+  width: 360px;
+  height: 640px;
+  overflow: hidden;
+  border-radius: 10px;
+  margin-right: 48px;
+  flex-basis: 360px;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.playerForeground {
+  grid-area: 1 / 1 / 1 / 1;
+  display: grid;
+  grid-template: 1fr / 1fr;
+}
+
+.journeys {
+  flex-basis: 620px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.journeysTitle {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 28.6px;
+  color: #eaeaeb;
+}
+
+.journeysHelp {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 16.8px;
+  color: #eaeaeb;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.outroSep {
+  margin-top: 40px;
+  height: 1px;
+  background-color: #383838;
+  width: 80%;
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.outro {
+  margin-top: 40px;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.valueProps {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  max-width: 429px;
+}
+
+.valuePropsTitle {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 28.6px;
+  text-align: center;
+  color: #eaeaeb;
+  margin-bottom: 16px;
+}
+
+.outroSignup {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  margin-left: 80px;
+}
+
+.outroSignup > *:not(:first-child) {
+  margin-top: 32px;
+}

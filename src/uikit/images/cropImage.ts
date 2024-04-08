@@ -2,8 +2,10 @@ import { USES_WEBP } from './usesWebp';
 
 const cropImageUnsafe = async (
   src: string,
+  srcSize: { width: number; height: number },
   cropTo: { width: number; height: number },
-  _cacheableIdentifier: string
+  cacheableIdentifier: string,
+  isVector: boolean
 ): Promise<string> => {
   const usesWebp = await USES_WEBP;
   const format = usesWebp ? 'image/webp' : 'image/png';
@@ -47,6 +49,11 @@ const cropImageUnsafe = async (
         1
       );
     };
+    if (isVector) {
+      const scaleFactor = Math.max(cropTo.width / srcSize.width, cropTo.height / srcSize.height);
+      img.width = Math.ceil(srcSize.width * scaleFactor);
+      img.height = Math.ceil(srcSize.height * scaleFactor);
+    }
     img.src = src;
   });
 };
@@ -60,18 +67,26 @@ const cropImageUnsafe = async (
  * something goes wrong this returns the original image url.
  *
  * @param src The url of the image to crop
+ * @param srcSize The expected natural size of the image, primarily for vector
+ *   images
  * @param cropTo The size to crop the image to
  * @param cacheableIdentifier A unique string which identifies the source
  *   image and the crop settings. For the web this is unused, but for
  *   the apps it's used as a filename.
+ * @param isVector true if the src points to a vector image, i.e., we can
+ *   scale it arbitrarily without loss of quality. false if the src points
+ *   to a raster image, i.e., we can't scale it arbitrarily without loss
+ *   of quality.
  */
 export const cropImage = async (
   src: string,
+  srcSize: { width: number; height: number },
   cropTo: { width: number; height: number },
-  cacheableIdentifier: string
+  cacheableIdentifier: string,
+  isVector: boolean
 ): Promise<string> => {
   try {
-    return await cropImageUnsafe(src, cropTo, cacheableIdentifier);
+    return await cropImageUnsafe(src, srcSize, cropTo, cacheableIdentifier, isVector);
   } catch (e) {
     console.error('Error cropping image', e);
     return src;

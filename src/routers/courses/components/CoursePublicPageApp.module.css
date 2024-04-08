@@ -1,0 +1,36 @@
+.container {
+  display: grid;
+  grid-template: 1fr / 1fr;
+}
+
+.background {
+  grid-area: 1 / 1 / 1 / 1;
+  min-height: 100vh;
+  background: linear-gradient(0deg, #010101 0%, #14191c 100%);
+}
+
+.contentContainer {
+  grid-area: 1 / 1 / 1 / 1;
+}
+
+.mobile {
+  display: grid;
+  grid-area: 1 / 1 / 1 / 1;
+  grid-template: 1fr / 1fr;
+}
+
+.desktop {
+  display: none;
+  grid-area: 1 / 1 / 1 / 1;
+  grid-template: 1fr / 1fr;
+}
+
+@media screen and (min-width: 768px) {
+  .mobile {
+    display: none;
+  }
+
+  .desktop {
+    display: grid;
+  }
+}

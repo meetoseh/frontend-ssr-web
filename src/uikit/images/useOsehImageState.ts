@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { OsehImageProps, OsehImagePropsLoadable } from './OsehImageProps';
+import { DisplaySize, OsehImageProps, OsehImagePropsLoadable } from './OsehImageProps';
 import { OsehImageState } from './OsehImageState';
 import { OsehImageStateRequestHandler } from './useOsehImageStateRequestHandler';
 
 const createLoadingState = (props: OsehImageProps): OsehImageState => ({
   localUrl: null,
-  displayWidth: props.displayWidth,
-  displayHeight: props.displayHeight,
+  displayWidth: props.displayWidth ?? props.displayHeight,
+  displayHeight: props.displayHeight ?? props.displayWidth,
   alt: props.alt,
   loading: true,
   placeholderColor: props.placeholderColor,
+  thumbhash: null,
 });
 
 /**
@@ -48,12 +49,31 @@ export const useOsehImageState = (
     createLoadingState(props),
   ]);
 
+  const compareAspectRatio =
+    props.displayWidth === null || props.displayHeight === null
+      ? props.compareAspectRatio
+      : undefined;
+
   useEffect(() => {
+    const cpDisplaySize: DisplaySize =
+      props.displayWidth === null
+        ? {
+            displayWidth: null,
+            displayHeight: props.displayHeight,
+            compareAspectRatio: compareAspectRatio!,
+          }
+        : props.displayHeight === null
+          ? {
+              displayWidth: props.displayWidth,
+              displayHeight: null,
+              compareAspectRatio: compareAspectRatio!,
+            }
+          : { displayWidth: props.displayWidth, displayHeight: props.displayHeight };
+
     const cpProps: OsehImageProps = {
       uid: props.uid,
       jwt: props.jwt,
-      displayWidth: props.displayWidth,
-      displayHeight: props.displayHeight,
+      ...cpDisplaySize,
       alt: props.alt,
       isPublic: props.isPublic,
       placeholderColor: props.placeholderColor,
@@ -95,6 +115,7 @@ export const useOsehImageState = (
     props.alt,
     props.isPublic,
     props.placeholderColor,
+    compareAspectRatio,
     handler,
   ]);
 

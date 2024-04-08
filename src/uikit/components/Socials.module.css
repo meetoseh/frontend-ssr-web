@@ -1,0 +1,31 @@
+.container {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.container > *:not(:last-child) {
+  margin-right: 16px;
+}
+
+.item {
+  border: none;
+  border-radius: 8px;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.item:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+}

@@ -36,7 +36,6 @@
   .tablet {
     display: grid;
     width: 100%;
-    grid-area: 1 / 1 / 1 / 1;
   }
 
   .mobile {

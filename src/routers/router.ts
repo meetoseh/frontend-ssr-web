@@ -3,6 +3,7 @@ import { PendingRoute } from './lib/route';
 import managementRoutes from './management/router';
 import docsRoute from './openapi/routes/docs';
 import journeyRoutes from './journeys/router';
+import courseRoutes from './courses/router';
 
 const routes: {
   [prefix: string]: (PendingRoute | ((args: CommandLineArgs) => Promise<PendingRoute[]>))[];
@@ -10,11 +11,13 @@ const routes: {
 routes['/shared/management'] = managementRoutes;
 routes['/shared'] = [docsRoute];
 
-for (const [pfx, subroutes] of Object.entries(journeyRoutes)) {
-  if (pfx in routes) {
-    routes[pfx].push(...subroutes);
-  } else {
-    routes[pfx] = subroutes;
+for (const fancyRoutes of [journeyRoutes, courseRoutes]) {
+  for (const [pfx, subroutes] of Object.entries(fancyRoutes)) {
+    if (pfx in routes) {
+      routes[pfx].push(...subroutes);
+    } else {
+      routes[pfx] = subroutes;
+    }
   }
 }
 

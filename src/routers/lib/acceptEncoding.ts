@@ -11,6 +11,7 @@ import { RouteBodyArgs } from './RouteBodyArgs';
 import { colorNow } from '../../logging';
 import * as httpSemantics from './httpSemantics';
 import { BufferPeekableStream } from './peekableStream';
+import { ZSTDCompress, ZSTDDecompress } from 'simple-zstd';
 
 export type Coding = {
   identifier: string;
@@ -85,6 +86,9 @@ export const supportedEncodings = {
   br: (stream: Readable): Readable => {
     return stream.pipe(createBrotliCompress());
   },
+  zstd: (stream: Readable): Readable => {
+    return stream.pipe(ZSTDCompress(21));
+  },
   identity: (stream: Readable): Readable => {
     return stream;
   },
@@ -96,6 +100,9 @@ export const supportedEncodingDecompressors = {
   },
   br: (stream: Readable): Readable => {
     return stream.pipe(createBrotliDecompress());
+  },
+  zstd: (stream: Readable): Readable => {
+    return stream.pipe(ZSTDDecompress());
   },
   identity: (stream: Readable): Readable => {
     return stream;
@@ -109,8 +116,9 @@ export type AcceptableEncoding = keyof typeof supportedEncodings;
 // used to break ties when multiple codings have the same quality
 const encodingPriority = {
   identity: 0,
-  gzip: 1,
-  br: 2,
+  zstd: 1,
+  gzip: 2,
+  br: 3,
 };
 
 /**

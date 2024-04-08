@@ -1,11 +1,8 @@
-import { ReactElement, useCallback, useEffect } from 'react';
+import { ReactElement, isValidElement, useEffect, useMemo, useState } from 'react';
 import { OsehContentProps } from './OsehContentProps';
 import { ContentFileWebExport, OsehContentTarget } from './OsehContentTarget';
 import { HTTP_API_URL } from '../ApiConstants';
 import { describeError } from '../components/ErrorBlock';
-import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
-import { setVWC } from '../lib/setVWC';
-import { useMappedValuesWithCallbacks } from '../hooks/useMappedValuesWithCallbacks';
 
 /**
  * A hook for getting the target to download for an Oseh content file. On the
@@ -18,15 +15,12 @@ export const useOsehContentTarget = ({
   uid,
   jwt,
   presign = true,
-}: OsehContentProps): ValueWithCallbacks<OsehContentTarget> => {
-  const webExportVWC = useWritableValueWithCallbacks<ContentFileWebExport | null>(() => null);
-  const errorVWC = useWritableValueWithCallbacks<ReactElement | null>(() => null);
+  comparer,
+}: OsehContentProps): OsehContentTarget => {
+  const [webExport, setWebExport] = useState<ContentFileWebExport | null>(null);
+  const [error, setError] = useState<ReactElement | null>(null);
 
   useEffect(() => {
-    if (window === undefined) {
-      return;
-    }
-
     let active = true;
     fetchWebExportWrapper();
     return () => {
@@ -34,131 +28,139 @@ export const useOsehContentTarget = ({
     };
 
     async function fetchWebExportWrapper() {
-      setVWC(errorVWC, null);
+      setError(null);
       if (uid === null || jwt === null) {
-        setVWC(webExportVWC, null);
+        setWebExport(null);
         return;
       }
 
       try {
-        const webExport = await fetchWebExport(uid, jwt, presign);
+        const webExport = await fetchWebExport(uid, jwt, presign, comparer);
         if (!active) {
           return;
         }
-        setVWC(webExportVWC, webExport);
+        setWebExport(webExport);
       } catch (e) {
-        setVWC(errorVWC, e as ReactElement);
+        if (!active) {
+          return;
+        }
+
+        if (isValidElement(e)) {
+          setError(e as ReactElement);
+          return;
+        }
+        const err = await describeError(e);
+        if (!active) {
+          return;
+        }
+        setError(err);
       }
     }
-  }, [uid, jwt, presign]);
+  }, [uid, jwt, presign, comparer]);
 
-  return useMappedValuesWithCallbacks(
-    [webExportVWC, errorVWC],
-    useCallback(() => {
-      const webExport = webExportVWC.get();
-      const error = errorVWC.get();
-      if (jwt === null || (webExport === null && error === null)) {
-        return {
-          state: 'loading',
-          error: null,
-          webExport: null,
-          presigned: null,
-          jwt: null,
-        };
-      }
-
-      if (error !== null) {
-        return {
-          state: 'failed',
-          error,
-          webExport: null,
-          presigned: null,
-          jwt: null,
-        };
-      }
-
-      if (webExport === null) {
-        throw new Error(
-          'this is impossible: webExport is null, error is neither null nor non-null'
-        );
-      }
-
+  return useMemo<OsehContentTarget>(() => {
+    if (jwt === null || (webExport === null && error === null)) {
       return {
-        state: 'loaded',
+        state: 'loading',
         error: null,
-        webExport,
-        presigned: presign,
-        jwt,
+        webExport: null,
+        presigned: null,
+        jwt: null,
       };
-    }, [jwt, presign, webExportVWC, errorVWC])
-  );
+    }
+
+    if (error !== null) {
+      return {
+        state: 'failed',
+        error,
+        webExport: null,
+        presigned: null,
+        jwt: null,
+      };
+    }
+
+    if (webExport === null) {
+      throw new Error('this is impossible: webExport is null, error is neither null nor non-null');
+    }
+
+    return {
+      state: 'loaded',
+      error: null,
+      webExport,
+      presigned: presign,
+      jwt,
+    };
+  }, [jwt, presign, webExport, error]);
 };
 
 /**
  * Fetches the best web export for a content file with the given uid and jwt,
  * presigning as requested.
- *
- * If this rejects, the rejection will be a ReactElement describing the error.
  */
 export const fetchWebExport = async (
   uid: string,
   jwt: string,
-  presign: boolean
+  presign: boolean,
+  comparer?: (a: ContentFileWebExport, b: ContentFileWebExport) => number,
+  signal?: AbortSignal
 ): Promise<ContentFileWebExport> => {
-  try {
-    const response = await fetch(
-      `${HTTP_API_URL}/api/1/content_files/${uid}/web.json?${new URLSearchParams({
-        presign: presign ? '1' : '0',
-      })}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `bearer ${jwt}`,
-        },
-      }
-    );
-    if (!response.ok) {
-      throw response;
-    }
-    const data: {
-      exports: {
-        url: string;
-        format: string;
-        bandwidth: number;
-        codecs: string[];
-        file_size: number;
-        quality_parameters: any;
-      }[];
-      duration_seconds: number;
-    } = await response.json();
+  const realComparer =
+    comparer ?? ((a: ContentFileWebExport, b: ContentFileWebExport) => b.bandwidth - a.bandwidth);
 
-    let bestExport: ContentFileWebExport | null = null;
-    let bestBandwidth = 0;
-    for (const exportData of data.exports) {
-      if (exportData.format !== 'mp4') {
-        continue;
-      }
-      if (exportData.bandwidth > bestBandwidth) {
-        bestExport = {
-          url: exportData.url,
-          format: exportData.format,
-          bandwidth: exportData.bandwidth,
-          codecs: exportData.codecs as Array<'aac'>,
-          fileSize: exportData.file_size,
-          qualityParameters: exportData.quality_parameters,
-        };
-        bestBandwidth = exportData.bandwidth;
-      }
+  const response = await fetch(
+    `${HTTP_API_URL}/api/1/content_files/${uid}/web.json?${new URLSearchParams({
+      presign: presign ? '1' : '0',
+    })}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `bearer ${jwt}`,
+      },
+      signal,
     }
-
-    if (bestExport === null) {
-      throw (
-        <>No suitable export found for this audio file. Please contact the site administrator.</>
-      );
-    }
-
-    return bestExport;
-  } catch (e) {
-    throw await describeError(e);
+  );
+  if (!response.ok) {
+    throw response;
   }
+  const data: {
+    exports: {
+      url: string;
+      format: string;
+      bandwidth: number;
+      codecs: string[];
+      file_size: number;
+      quality_parameters: any;
+      format_parameters: any;
+    }[];
+    duration_seconds: number;
+  } = await response.json();
+
+  let bestExport: ContentFileWebExport | null = null;
+  for (const exportData of data.exports) {
+    if (exportData.format !== 'mp4') {
+      continue;
+    }
+
+    const option: ContentFileWebExport = {
+      url: exportData.url,
+      format: exportData.format,
+      bandwidth: exportData.bandwidth,
+      codecs: exportData.codecs,
+      fileSize: exportData.file_size,
+      qualityParameters: exportData.quality_parameters,
+      formatParameters: exportData.format_parameters,
+    };
+
+    if (bestExport === null || realComparer(bestExport, option) > 0) {
+      bestExport = option;
+    }
+  }
+
+  if (bestExport === null) {
+    return Promise.reject(
+      <>No suitable export found for this audio file. Please contact the site administrator.</>
+    );
+  }
+
+  return bestExport;
 };

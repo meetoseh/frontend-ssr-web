@@ -6,13 +6,11 @@ export const ValueProps = (): ReactElement => {
     <div className={styles.container}>
       <div className={styles.item}>
         <div className={styles.iconShort} />
-        <div className={styles.text}>Bite-sized content from 1-5 minutes</div>
+        <div className={styles.text}>Short classes you can fit in anytime, anywhere</div>
       </div>
       <div className={styles.item}>
         <div className={styles.iconExperts} />
-        <div className={styles.text}>
-          100s of classes to reduce anxiety, sleep better and manage panic attacks
-        </div>
+        <div className={styles.text}>Learn from expert mindfulness instructors</div>
       </div>
       <div className={styles.item}>
         <div className={styles.iconGoals} />

@@ -35,6 +35,7 @@
   background: transparent;
   color: white;
   border-color: white;
+  border-width: 1px;
 }
 
 .filled {
@@ -169,6 +170,9 @@
 
 @media not (prefers-reduced-motion) {
   .button {
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease;
   }
 }

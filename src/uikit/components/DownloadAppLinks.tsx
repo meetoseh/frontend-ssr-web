@@ -1,8 +1,15 @@
-import { ReactElement, useEffect, useRef } from 'react';
+import { CSSProperties, ReactElement, useEffect, useRef } from 'react';
 import styles from './DownloadAppLinks.module.css';
 import assistiveStyles from '../styles/assistive.module.css';
-import { Callbacks } from '../lib/Callbacks';
+import { Callbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
 import { sendPlausibleEvent } from '../lib/sendPlausibleEvent';
+import {
+  VariableStrategyProps,
+  useVariableStrategyPropsAsValueWithCallbacks,
+} from '../anim/VariableStrategyProps';
+import { useMappedValueWithCallbacks } from '../hooks/useMappedValueWithCallbacks';
+import { useStyleVWC } from '../hooks/useStyleVWC';
+import { setVWC } from '../lib/setVWC';
 
 /**
  * Shows two horizontal badges for downloading on the app store or
@@ -10,15 +17,30 @@ import { sendPlausibleEvent } from '../lib/sendPlausibleEvent';
  */
 export const DownloadAppLinks = ({
   tracking,
+  justify: justifyVSP,
 }: {
   /**
    * True to trigger frontend-ssr-web/uikit/DownloadAppLinks--click when one of
    * the links is clicked, false otherwise
    */
   tracking: boolean;
+  /**
+   * The justify-content value, or undefined for center
+   */
+  justify?: VariableStrategyProps<'flex-start' | 'center' | 'flex-end'>;
 }): ReactElement => {
   const appleRef = useRef<HTMLAnchorElement>(null);
   const googleRef = useRef<HTMLAnchorElement>(null);
+  const justifyVWC = useVariableStrategyPropsAsValueWithCallbacks(
+    justifyVSP ?? { type: 'react-rerender', props: 'center' }
+  );
+
+  const containerRef = useWritableValueWithCallbacks<HTMLDivElement | null>(() => null);
+  const containerStyle = useMappedValueWithCallbacks(
+    justifyVWC,
+    (justifyContent): CSSProperties => ({ justifyContent })
+  );
+  useStyleVWC(containerRef, containerStyle);
 
   useEffect(() => {
     if (!tracking) {
@@ -64,7 +86,10 @@ export const DownloadAppLinks = ({
   }, [tracking]);
 
   return (
-    <div className={styles.container}>
+    <div
+      className={styles.container}
+      style={containerStyle.get()}
+      ref={(r) => setVWC(containerRef, r)}>
       <div className={styles.item}>
         <a
           className={styles.iconAnchor}

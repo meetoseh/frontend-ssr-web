@@ -1,5 +1,10 @@
 import { createFakeCancelable } from '../../lib/createFakeCancelable';
-import { createEmptyRootRouter, addRouteToRootRouter, useRouterToRoute } from './router';
+import {
+  createEmptyRootRouter,
+  addRouteToRootRouter,
+  useRouterToRoute,
+  cleanPathPrefix,
+} from './router';
 import { templatedPath } from './pathHelpers';
 import { CommandLineArgs } from '../../CommandLineArgs';
 import { constructCancelablePromise } from '../../lib/CancelablePromiseConstructor';
@@ -164,4 +169,46 @@ test('templated paths within subrouter without prefix', async () => {
     docs: [],
   });
   expect(await useRouterToRoute(args, router, 'GET', '/shared/test').promise).not.toBeNull();
+});
+
+test('clean path prefix no change', () => {
+  const original = ['/foo', '/bar'];
+  const result = cleanPathPrefix(original);
+  expect(result).toEqual(['/foo', '/bar']);
+  expect(result).toBe(original);
+});
+
+test('clean path prefix split 1', () => {
+  const original = ['/foo/bar'];
+  const result = cleanPathPrefix(original);
+  expect(result).toEqual(['/foo', '/bar']);
+  expect(result).not.toBe(original);
+  expect(original).toEqual(['/foo/bar']);
+});
+
+test('clean path prefix split in middle', () => {
+  const original = ['/foo', '/bar/baz', '/qux'];
+  const result = cleanPathPrefix(original);
+  expect(result).toEqual(['/foo', '/bar', '/baz', '/qux']);
+  expect(result).not.toBe(original);
+  expect(original).toEqual(['/foo', '/bar/baz', '/qux']);
+});
+
+test('indirect child templated route via joint path', async () => {
+  const router = createEmptyRootRouter('');
+  const path = templatedPath(['/', 'uid', '/'])[0];
+  await addRouteToRootRouter(router, ['/foo/bar'], {
+    methods: ['GET'],
+    path,
+    handler: fakeHandler,
+    docs: [],
+  });
+
+  expect(
+    await useRouterToRoute(args, router, 'GET', '/foo/bar/oseh_u_test/').promise
+  ).not.toBeNull();
+  expect(await useRouterToRoute(args, router, 'HEAD', '/foo/bar/oseh_u_test/').promise).toBeNull();
+  expect(await useRouterToRoute(args, router, 'GET', '/foo/bar/oseh_u_test').promise).toBeNull();
+  expect(await useRouterToRoute(args, router, 'GET', '/foo/oseh_u_test').promise).toBeNull();
+  expect(await useRouterToRoute(args, router, 'GET', '/oseh_u_test').promise).toBeNull();
 });

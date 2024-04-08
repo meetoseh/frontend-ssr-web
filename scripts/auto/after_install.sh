@@ -4,6 +4,11 @@ install_basic_dependencies() {
     then
         yum install -y rsync
     fi
+    
+    if ! zstd --help > /dev/null 2>&1
+    then
+        yum install -y zstd libzstd-devel libzstd
+    fi
 }
 
 activate_nvm() {

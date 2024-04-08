@@ -1,4 +1,11 @@
-import { PropsWithChildren, ReactElement, useContext, useEffect, useRef } from 'react';
+import {
+  CSSProperties,
+  PropsWithChildren,
+  ReactElement,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react';
 import styles from './SharedUnlockClassApp.module.css';
 import { Tablet } from './Tablet';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
@@ -22,6 +29,10 @@ import { OpenGraphMetaImage } from '../../../uikit/lib/OpenGraphMetaImage';
 import { OpenGraphMetaImages } from '../../../uikit/components/OpenGraphMetaImages';
 import { useVisitorValueWithCallbacks } from '../../../uikit/hooks/useVisitorValueWithCallbacks';
 import { LoginProvider } from '../../../uikit/contexts/LoginContext';
+import { Footer } from '../../../uikit/components/footer/Footer';
+import { useMappedValueWithCallbacks } from '../../../uikit/hooks/useMappedValueWithCallbacks';
+import { useWindowSizeValueWithCallbacks } from '../../../uikit/hooks/useWindowSize';
+import { useStyleVWC } from '../../../uikit/hooks/useStyleVWC';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -133,14 +144,18 @@ export const SharedUnlockedClassApp = (props: SharedUnlockedClassProps): ReactEl
         <link rel="icon" href={`${rootFrontendUrl}/favicon.ico`} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#14191c" />
         <meta property="og:site_name" content="oseh" />
         <meta property="og:title" content={props.title} />
         <meta property="og:url" content={`${rootFrontendUrl}/shared/${props.slug}`} />
         <meta property="og:type" content="website" />
         <OpenGraphMetaImages images={props.metaImages} />
         <meta name="description" property="og:description" content={props.description} />
-        <link rel="apple-touch-icon" href={`${rootFrontendUrl}/apple-touch-icon.png`} />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href={`${rootFrontendUrl}/apple-touch-icon.png`}
+        />
         <link rel="manifest" href={`${rootFrontendUrl}/manifest.json`} />
         <link rel="stylesheet" href="/fonts.css" />
         <link rel="stylesheet" href="/global.css" />
@@ -190,9 +205,9 @@ export const SharedUnlockedClassBody = (
 ) => {
   const modalContext = useContext(ModalContext);
   const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [
+    'Direct',
     'Google',
     'SignInWithApple',
-    'Direct',
   ]);
 
   const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers, {
@@ -211,14 +226,26 @@ export const SharedUnlockedClassBody = (
   useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
   useErrorModal(modalContext.modals, transcriptErrorVWC, 'Loading transcript');
 
+  const windowSizeVWC = useWindowSizeValueWithCallbacks();
+
+  const tabletRef = useWritableValueWithCallbacks<HTMLDivElement | null>(() => null);
+  const tabletStyle = useMappedValueWithCallbacks(windowSizeVWC, (size): CSSProperties => {
+    if (size === null) {
+      return {};
+    }
+    return { minHeight: `${size.height}px` };
+  });
+  useStyleVWC(tabletRef, tabletStyle);
+
   return (
     <>
-      <div className={styles.tablet}>
+      <div className={styles.tablet} style={tabletStyle.get()} ref={(r) => setVWC(tabletRef, r)}>
         <Tablet {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
       </div>
       <div className={styles.mobile}>
         <Mobile {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
       </div>
+      <Footer />
     </>
   );
 };

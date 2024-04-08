@@ -1,6 +1,7 @@
-import { CrudFetcherKeyMap, convertUsingKeymap } from '../crud/CrudFetcher';
 import { HTTP_API_URL } from '../ApiConstants';
-import { compareSizes } from './compareSizes';
+import { CrudFetcherKeyMap, convertUsingKeymap } from '../crud/CrudFetcher';
+import { LogicalSize } from './LogicalSize';
+import { compareSizes, compareVectorSizes, reduceImageSizeExactly } from './compareSizes';
 
 /**
  * An item within a playlist
@@ -26,6 +27,11 @@ export type PlaylistItem = {
    * The size of the item in bytes
    */
   sizeBytes: number;
+  /**
+   * The thumbhash of the image, base64url encoded.
+   * See https://evanw.github.io/thumbhash/
+   */
+  thumbhash: string;
 };
 
 export const playlistItemKeymap: CrudFetcherKeyMap<PlaylistItem> = {
@@ -227,13 +233,13 @@ export const fetchPublicPlaylist = async (
 export function selectFormat<T extends Playlist>(
   playlist: T,
   usesWebp: boolean,
-  want: { width: number; height: number }
+  want: LogicalSize
 ): string & keyof T['items'] {
-  const area = want.width * want.height;
-
   if (usesWebp && playlist.items.webp) {
     return 'webp';
   }
+
+  const area = (want.width ?? want.height) * (want.height ?? want.width);
 
   if (area <= 200 * 200 && playlist.items.png) {
     return 'png';
@@ -247,22 +253,142 @@ export function selectFormat<T extends Playlist>(
 }
 
 /**
+ * Determines if two aspect ratios are approximately equal. This is important
+ * over exact aspect ratio comparisons, since the true original aspect ratio was
+ * potentially lost when the image was exported, and larger resolutions might have
+ * resulted in better approximations of the true original aspect ratio than would
+ * be possible to represent using integers at the smaller resolutions. In other
+ * words, 2x of 100x50 may sometimes be 200x101, rather than 200x100, if the true
+ * original resolution is closer to 200x101 than 2x1, but closer to 2x1 than 100x51
+ */
+const areAspectRatiosApproximatelyEqual = (
+  a: { width: number; height: number },
+  b: { width: number; height: number }
+): boolean => {
+  if (a.width === b.width && a.height === b.height) {
+    return true;
+  }
+
+  if (a.height === 0) {
+    return b.height === 0;
+  }
+  if (b.height === 0) {
+    return false;
+  }
+  if (a.width === 0) {
+    return b.width === 0;
+  }
+  if (b.width === 0) {
+    return false;
+  }
+
+  const widthOverHeightA = a.width / a.height;
+  const widthOverHeightB = b.width / b.height;
+  const relativeDifferenceWoH =
+    Math.abs(widthOverHeightA - widthOverHeightB) / Math.max(widthOverHeightA, widthOverHeightB);
+  if (relativeDifferenceWoH < 0.05) {
+    return true;
+  }
+
+  const heightOverWidthA = a.height / a.width;
+  const heightOverWidthB = b.height / b.width;
+  const relativeDifferenceHoW =
+    Math.abs(heightOverWidthA - heightOverWidthB) / Math.max(heightOverWidthA, heightOverWidthB);
+  return relativeDifferenceHoW < 0.05;
+};
+
+/**
  * Selects the best item within the given list of options, given
- * that we want to render it at the given width and height.
+ * that we want to render it at the given width and height. This
+ * implicitly assumes rasterized items, and thus the comparison
+ * is inappropriate for vector items.
  *
  * @param items The list of items to choose from, must be non-empty
+ * @param want The width and height of the image we want to display
+ * @returns The best item to use
  */
-const selectBestItemFromItems = (
-  items: PlaylistItem[],
-  want: { width: number; height: number }
-): PlaylistItem => {
+const selectBestItemFromItems = (items: PlaylistItem[], want: LogicalSize): PlaylistItem => {
+  if (items.length === 0) {
+    throw new Error('Cannot select best item from empty list');
+  }
+
+  if (want.width !== null && want.height !== null) {
+    let best = items[0];
+    for (let i = 1; i < items.length; i++) {
+      if (compareSizes(want, items[i], best) < 0) {
+        best = items[i];
+      }
+    }
+    return best;
+  }
+
+  let bestAspectRatio: { width: number; height: number } = reduceImageSizeExactly(items[0]);
+  let bestAtBestAspectRatio = items[0];
+
+  const compareSizeAtEqualAR =
+    want.width === null
+      ? (a: PlaylistItem, b: PlaylistItem) => {
+          const usefulA = Math.min(a.height, want.height);
+          const usefulB = Math.min(b.height, want.height);
+          if (usefulA !== usefulB) {
+            return usefulB - usefulA;
+          }
+          return a.height - b.height;
+        }
+      : (a: PlaylistItem, b: PlaylistItem) => {
+          const usefulA = Math.min(a.width, want.width);
+          const usefulB = Math.min(b.width, want.width);
+          if (usefulA !== usefulB) {
+            return usefulB - usefulA;
+          }
+          return a.width - b.width;
+        };
+
+  for (let i = 1; i < items.length; i++) {
+    const aspectRatio = reduceImageSizeExactly(items[i]);
+    if (!areAspectRatiosApproximatelyEqual(bestAspectRatio, aspectRatio)) {
+      const compareResult = want.compareAspectRatios(bestAspectRatio, aspectRatio);
+
+      if (compareResult < 0) {
+        // current best is strictly better
+        continue;
+      }
+
+      if (compareResult > 0) {
+        // current item is strictly better
+        bestAspectRatio = aspectRatio;
+        bestAtBestAspectRatio = items[i];
+        continue;
+      }
+    }
+
+    // aspect ratio comparison is a match
+    if (compareSizeAtEqualAR(items[i], bestAtBestAspectRatio) < 0) {
+      bestAtBestAspectRatio = items[i];
+    }
+  }
+
+  return bestAtBestAspectRatio;
+};
+
+/**
+ * Selects the best item within the given list of options, given
+ * that we want to render it at the given width and height. This
+ * assumes vector items by ignoring the absolute width and height
+ * values and instead selecting based on the aspect ratio.
+ *
+ * @param items The list of items to choose from, must be non-empty
+ * @param want The width and height of the image we want to display
+ * @returns The best item to use
+ */
+const selectBestVectorItemFromItems = (items: PlaylistItem[], want: LogicalSize): PlaylistItem => {
   if (items.length === 0) {
     throw new Error('Cannot select best item from empty list');
   }
 
   let best = items[0];
   for (let i = 1; i < items.length; i++) {
-    if (compareSizes(want, items[i], best) < 0) {
+    if (compareVectorSizes(want, items[i], best) < 0) {
       best = items[i];
     }
   }
@@ -279,13 +405,26 @@ const selectBestItemFromItems = (
  * @param want The width and height of the image we want to display
  * @returns The best item to use
  */
-const selectBestItem = (
-  playlist: Playlist,
-  usesWebp: boolean,
-  want: { width: number; height: number }
-): PlaylistItem => {
+const selectBestItem = (playlist: Playlist, usesWebp: boolean, want: LogicalSize): PlaylistItem => {
   const format = selectFormat(playlist, usesWebp, want);
   return selectBestItemFromItems(playlist.items[format], want);
+};
+
+const getScaledSize = (logical: LogicalSize, pixelRatio: number): LogicalSize => {
+  if (logical.width === null) {
+    return {
+      width: null,
+      height: logical.height * pixelRatio,
+      compareAspectRatios: logical.compareAspectRatios,
+    };
+  } else if (logical.height === null) {
+    return {
+      width: logical.width * pixelRatio,
+      height: null,
+      compareAspectRatios: logical.compareAspectRatios,
+    };
+  }
+  return { width: logical.width * pixelRatio, height: logical.height * pixelRatio };
 };
 
 /**
@@ -298,30 +437,94 @@ const selectBestItem = (
 export const selectBestItemUsingPixelRatio = ({
   playlist,
   usesWebp,
+  usesSvg,
   logical,
   preferredPixelRatio,
 }: {
   playlist: Playlist;
   usesWebp: boolean;
-  logical: { width: number; height: number };
+  usesSvg: boolean;
+  logical: LogicalSize;
   preferredPixelRatio: number;
 }): { item: PlaylistItem; cropTo?: { width: number; height: number } } => {
+  if (usesSvg && playlist.items.svg) {
+    const bestVectorItem = selectBestVectorItemFromItems(playlist.items.svg, logical);
+    const want = (() => {
+      if (logical.width === null) {
+        return {
+          width:
+            (bestVectorItem.width / bestVectorItem.height) * logical.height * preferredPixelRatio,
+          height: logical.height * preferredPixelRatio,
+        };
+      }
+
+      if (logical.height === null) {
+        return {
+          width: logical.width * preferredPixelRatio,
+          height:
+            (bestVectorItem.height / bestVectorItem.width) * logical.width * preferredPixelRatio,
+        };
+      }
+
+      return {
+        width: logical.width * preferredPixelRatio,
+        height: logical.height * preferredPixelRatio,
+      };
+    })();
+    const scaleFactorRequired = Math.max(
+      want.width / bestVectorItem.width,
+      want.height / bestVectorItem.height
+    );
+    const rasterizedSize = {
+      width: scaleFactorRequired * bestVectorItem.width,
+      height: scaleFactorRequired * bestVectorItem.height,
+    };
+    const adjustedItem = {
+      ...bestVectorItem,
+      width: rasterizedSize.width,
+      height: rasterizedSize.height,
+    };
+    const threshold = 1 / preferredPixelRatio;
+    if (
+      Math.abs(adjustedItem.width - want.width) < threshold &&
+      Math.abs(adjustedItem.height - want.height) < threshold
+    ) {
+      return { item: adjustedItem };
+    }
+
+    return {
+      item: {
+        ...adjustedItem,
+        width: Math.ceil(adjustedItem.width * preferredPixelRatio) / preferredPixelRatio,
+        height: Math.ceil(adjustedItem.height * preferredPixelRatio) / preferredPixelRatio,
+      },
+      cropTo: { width: want.width, height: want.height },
+    };
+  }
+
   let pixelRatio = preferredPixelRatio;
   while (true) {
-    const want = { width: logical.width * pixelRatio, height: logical.height * pixelRatio };
-    const item = selectBestItem(playlist, usesWebp, want);
+    const want = getScaledSize(logical, pixelRatio);
 
-    const satisfactorilyLarge = item.width >= want.width && item.height >= want.height;
+    const item = selectBestItem(playlist, usesWebp, want);
+    const itemWant =
+      want.width === null
+        ? { width: Math.round((item.width * want.height) / item.height), height: want.height }
+        : want.height === null
+          ? { width: want.width, height: Math.round((item.height * want.width) / item.width) }
+          : want;
+
+    const satisfactorilyLarge = item.width >= itemWant.width && item.height >= itemWant.height;
     if (pixelRatio === preferredPixelRatio && satisfactorilyLarge) {
-      if (item.width === want.width && item.height === want.height) {
+      if (item.width === itemWant.width && item.height === itemWant.height) {
         return { item };
       }
-      return { item, cropTo: { width: want.width, height: want.height } };
+      return { item, cropTo: itemWant };
     }
     if (satisfactorilyLarge) {
       return {
         item,
-        cropTo: { width: want.width, height: want.height },
+        cropTo: itemWant,
       };
     }
     if (pixelRatio <= 1) {

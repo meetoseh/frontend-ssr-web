@@ -26,16 +26,22 @@ import { constructCancelablePromise } from '../../lib/CancelablePromiseConstruct
  */
 const ROUTE_PREFIX_IDENTIFIER = '/Gm9UPI0xlReHHzDBrsp-pA-Hji83bJDxcKoeRZMCyiI';
 
-const DEV_CLS_SCRIPT = `
-let cls = 0;
-new PerformanceObserver((entryList) => {
-  for (const entry of entryList.getEntries()) {
-    if (!entry.hadRecentInput) {
-      cls += entry.value;
-      console.log('Current CLS value:', cls, entry);
+const DEV_CLS_SCRIPT = `(() => {
+  let cls = 0;
+  const obs = new PerformanceObserver((entryList) => {
+    for (const entry of entryList.getEntries()) {
+      if (!entry.hadRecentInput) {
+        cls += entry.value;
+        console.log('Current CLS value:', cls, entry);
+      }
     }
-  }
-}).observe({type: 'layout-shift', buffered: true});
+  });
+  obs.observe({ type: 'layout-shift', buffered: true });
+  setTimeout(() => {
+    obs.disconnect();
+    console.log('Final CLS value:', cls);
+  }, 5000);
+})();
 `;
 
 type BundledAsset = {

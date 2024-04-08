@@ -16,6 +16,8 @@
   margin-right: 12px;
   padding-left: 1px;
   padding-right: 1px;
+  padding-top: 0.5px;
+  padding-bottom: 0.5px;
 }
 
 .iconSignInWithApple {
@@ -26,15 +28,64 @@
   margin-right: 12px;
   padding-left: 1px;
   padding-right: 1px;
+  padding-top: 0.5px;
+  padding-bottom: 0.5px;
 }
 
 .iconDirect,
 .iconDev {
   composes: icon;
   width: 20px;
-  height: 18px;
+  height: 20px;
   background-image: url('../assets/email.svg');
   margin-right: 12px;
-  padding-top: 0.5px;
-  padding-bottom: 0.5px;
+}
+
+.three {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.three .icon {
+  margin-right: 0;
+}
+
+.primary {
+  margin-bottom: 12px;
+}
+
+.threeContent {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.secondaries {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.secondaries > * {
+  flex-basis: calc(50% - 6px);
+  flex-grow: 0;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.threeIcon {
+  margin-right: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.secondaries .threeIcon {
+  filter: invert(1);
 }

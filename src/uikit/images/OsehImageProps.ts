@@ -1,4 +1,11 @@
-export type OsehImageProps = {
+import { AspectRatioComparer } from './LogicalSize';
+
+export type DisplaySize =
+  | { displayWidth: number; displayHeight: number }
+  | { displayWidth: number; displayHeight: null; compareAspectRatio: AspectRatioComparer }
+  | { displayWidth: null; displayHeight: number; compareAspectRatio: AspectRatioComparer };
+
+export type OsehImageProps = DisplaySize & {
   /**
    * The uid of the oseh image file. If null, no image is loaded until
    * the uid is set.
@@ -9,16 +16,6 @@ export type OsehImageProps = {
    * The JWT which provides access to the image file. May only be null if not is_public
    */
   jwt: string | null;
-
-  /**
-   * The width we want to display the image at. The URL will be selected based on this.
-   */
-  displayWidth: number;
-
-  /**
-   * The height we want to display the image at. The URL will be selected based on this.
-   */
-  displayHeight: number;
 
   /**
    * The alt text for the image
@@ -35,6 +32,12 @@ export type OsehImageProps = {
    * is loading
    */
   placeholderColor?: string;
+
+  /**
+   * If specified and true, the thumbhash is desired, not the actual image. If rendered,
+   * only render the thumbhash.
+   */
+  thumbhashOnly?: boolean;
 };
 
 export type OsehImagePropsLoadable = OsehImageProps & { uid: string };

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { OsehImageState } from './OsehImageState';
-import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
 import { useValueWithCallbacksEffect } from '../hooks/useValueWithCallbacksEffect';
+import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
+import { OsehImageState } from './OsehImageState';
 
 /**
  * Wraps a oseh image state value with callbacks, typically from
@@ -25,6 +25,18 @@ export const useStaleOsehImageOnSwap = (
     useCallback(
       (img) => {
         const oldResult = result.get();
+
+        if (
+          img.loading &&
+          oldResult.loading &&
+          img.thumbhash === null &&
+          oldResult.thumbhash !== null
+        ) {
+          result.set({ ...img, thumbhash: oldResult.thumbhash });
+          result.callbacks.call(undefined);
+          return;
+        }
+
         if (!img.loading || oldResult.loading) {
           result.set(img);
           result.callbacks.call(undefined);

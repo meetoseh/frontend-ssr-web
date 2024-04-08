@@ -1,4 +1,5 @@
 import { OsehContentRef } from './OsehContentRef';
+import { ContentFileWebExport } from './OsehContentTarget';
 
 /**
  * The information required to select a download target for a oseh content.
@@ -23,4 +24,10 @@ export type OsehContentProps = OsehContentRef & {
    * @default true
    */
   presign?: boolean;
+
+  /**
+   * If specified, used to compare which target is preferable. Otherwise,
+   * the largest bandwidth option is used.
+   */
+  comparer?: (a: ContentFileWebExport, b: ContentFileWebExport) => number;
 };

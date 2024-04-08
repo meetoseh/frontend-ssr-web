@@ -13,7 +13,7 @@ export type ContentFileWebExport = {
    * The average bandwidth of the mp4 file, in bits per second.
    */
   bandwidth: number;
-  codecs: Array<'aac'>;
+  codecs: string[];
   /**
    * The size of the mp4 file, in bytes.
    */
@@ -23,6 +23,11 @@ export type ContentFileWebExport = {
    * have influenced why this export was selected.
    */
   qualityParameters: any;
+  /**
+   * What format parameters describe this export, which may have influenced
+   * why this export was selected.
+   */
+  formatParameters: any;
 };
 
 /**

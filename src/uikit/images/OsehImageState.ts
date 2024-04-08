@@ -10,13 +10,14 @@ export type OsehImageState = {
   localUrl: string | null;
 
   /**
-   * The width we want to display the image at. The URL will be selected based on this.
+   * The thumbhash for the image, if known
    */
+  thumbhash: string | null;
+
+  /** The width in pixels to render the image at */
   displayWidth: number;
 
-  /**
-   * The height we want to display the image at. The URL will be selected based on this.
-   */
+  /** The height in pixels to render the image at */
   displayHeight: number;
 
   /**
@@ -35,3 +36,13 @@ export type OsehImageState = {
    */
   placeholderColor?: string;
 };
+
+export const areOsehImageStatesEqual = (a: OsehImageState, b: OsehImageState): boolean =>
+  a === b ||
+  (a.localUrl === b.localUrl &&
+    a.thumbhash === b.thumbhash &&
+    a.displayWidth === b.displayWidth &&
+    a.displayHeight === b.displayHeight &&
+    a.alt === b.alt &&
+    a.loading === b.loading &&
+    a.placeholderColor === b.placeholderColor);

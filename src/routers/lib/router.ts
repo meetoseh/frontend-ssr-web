@@ -99,6 +99,8 @@ export const addRouteToRootRouter = async (
     return;
   }
 
+  pathPrefix = cleanPathPrefix(pathPrefix);
+
   let subrouter: Router = router;
   for (const pathPrefixPart of pathPrefix) {
     let nextSubrouter = subrouter.subrouters[pathPrefixPart];
@@ -119,6 +121,42 @@ export const addRouteToRootRouter = async (
     handler: await route.handler(subrouter.prefix),
     methods: new Set(route.methods),
   });
+};
+
+/**
+ * If the path prefix contains only proper path segments, then this function
+ * returns the original array without copying. Otherwise, copies the array,
+ * splitting the path prefix into proper path segments.
+ *
+ * Examples:
+ *  - `['/foo', '/bar']` => no change
+ *  - `[/foo/bar']` => `['/foo', '/bar']`
+ *  - `['/foo', '/bar/baz', '/qux']` => `['/foo', '/bar', '/baz', '/qux']`
+ */
+export const cleanPathPrefix = (pathPrefix: string[]): string[] => {
+  let result: string[] | null = null;
+  for (let i = 0; i < pathPrefix.length; i++) {
+    let slashAt = pathPrefix[i].indexOf('/', 1);
+    if (slashAt < 0) {
+      if (result !== null) {
+        result.push(pathPrefix[i]);
+      }
+      continue;
+    }
+
+    if (result === null) {
+      result = pathPrefix.slice(0, i);
+    }
+
+    let startAt = 0;
+    while (slashAt > 0) {
+      result.push(pathPrefix[i].substring(startAt, slashAt));
+      startAt = slashAt;
+      slashAt = pathPrefix.indexOf('/', slashAt + 1);
+    }
+    result.push(pathPrefix[i].substring(startAt));
+  }
+  return result ?? pathPrefix;
 };
 
 /**

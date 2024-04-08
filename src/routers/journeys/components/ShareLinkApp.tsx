@@ -160,7 +160,7 @@ export const ShareLinkApp = (props: ShareLinkProps): ReactElement => {
         <link rel="icon" href={`${rootFrontendUrl}/favicon.ico`} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#14191c" />
         <meta property="og:site_name" content="oseh" />
         <meta property="og:title" content={title} />
         <meta
@@ -184,7 +184,11 @@ export const ShareLinkApp = (props: ShareLinkProps): ReactElement => {
           }
         />
         <OpenGraphMetaImages images={props.metaImages} />
-        <link rel="apple-touch-icon" href={`${rootFrontendUrl}/apple-touch-icon.png`} />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href={`${rootFrontendUrl}/apple-touch-icon.png`}
+        />
         <link rel="manifest" href={`${rootFrontendUrl}/manifest.json`} />
         <link rel="stylesheet" href="/fonts.css" />
         <link rel="stylesheet" href="/global.css" />
