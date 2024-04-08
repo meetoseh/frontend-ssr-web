@@ -100,8 +100,35 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
   header = false,
   neverTranscript = false,
 }: PlayerForegroundProps<T>): ReactElement => {
-  const durationSecondsVWC = useMappedValueWithCallbacks(content, (audio) => {
-    return audio.element?.duration ?? durationSeconds ?? 0;
+  const durationSecondsVWC = useWritableValueWithCallbacks<number>(() => durationSeconds ?? 0);
+  useValueWithCallbacksEffect(content, (c) => {
+    if (c.element === null) {
+      return undefined;
+    }
+
+    const ele = c.element;
+    let active = true;
+    ele.addEventListener('loadedmetadata', recheck);
+    ele.addEventListener('durationchange', recheck);
+    recheck();
+    const unmount = () => {
+      if (active) {
+        active = false;
+        ele.removeEventListener('loadedmetadata', recheck);
+        ele.removeEventListener('durationchange', recheck);
+      }
+    };
+    return unmount;
+
+    function recheck() {
+      if (!active) {
+        return;
+      }
+
+      if (ele.duration !== null && isFinite(ele.duration) && ele.duration > 0) {
+        setVWC(durationSecondsVWC, ele.duration);
+      }
+    }
   });
 
   const totalTime = useMappedValueWithCallbacks(durationSecondsVWC, (durationSeconds) => {

@@ -17,12 +17,14 @@ export const Journey = ({
   description,
   durationSeconds,
   activeIndexVWC,
+  onClick,
 }: {
   index: number;
   title: string;
   description: string;
   durationSeconds: number;
   activeIndexVWC: ValueWithCallbacks<number>;
+  onClick: () => void;
 }): ReactElement => {
   const isActive = useMappedValueWithCallbacks(
     activeIndexVWC,
@@ -33,7 +35,13 @@ export const Journey = ({
     <RenderGuardedComponent
       props={isActive}
       component={(active) => (
-        <div className={combineClasses(styles.journey, active ? styles.activeJourney : undefined)}>
+        <button
+          type="button"
+          className={combineClasses(styles.journey, active ? styles.activeJourney : undefined)}
+          onClick={(e) => {
+            e.preventDefault();
+            onClick();
+          }}>
           <div className={styles.journeyTitleRow}>
             <div className={styles.journeyTitle}>
               {index + 1}. {title}
@@ -47,7 +55,7 @@ export const Journey = ({
             </div>
           </div>
           {active && <div className={styles.journeyDescription}>{description}</div>}
-        </div>
+        </button>
       )}
     />
   );

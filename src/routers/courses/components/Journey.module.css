@@ -1,4 +1,12 @@
 .journey {
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  text-decoration: none;
+  text-align: left;
+  border: none;
+  margin: 0;
+
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
