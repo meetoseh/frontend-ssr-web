@@ -28,6 +28,7 @@ import {
   useOsehTranscriptValueWithCallbacks,
 } from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
+import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
 
 export type CoursePublicPageJourney = {
   /** The title of the journey */
@@ -101,6 +102,18 @@ export const CoursePublicPageApp = (props: CoursePublicPageAppProps): ReactEleme
       size === null ? { minHeight: '100vh' } : { minHeight: `${size.height}px` }
   );
   useStyleVWC(backgroundRef, backgroundStyleVWC);
+
+  usePlausibleEvent(
+    'pageview--frontend-ssr-web/routers/courses/components/CoursePublicPageApp.tsx',
+    {
+      name: 'pageview',
+      componentPath: '/frontend-ssr-web/routers/courses/components/CoursePublicPageApp.tsx',
+      props: {
+        slug: props.slug,
+        instructor: props.instructor,
+      },
+    }
+  );
 
   return (
     <html>

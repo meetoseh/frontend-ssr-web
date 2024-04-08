@@ -610,7 +610,7 @@ function acquireUpdateLock(): CancelablePromise<void> {
 
       const commandPromise = client.set('updates:frontend-ssr-web:lock', ourIdentifier, {
         NX: true,
-        EX: 300,
+        EX: 600,
       });
 
       try {
