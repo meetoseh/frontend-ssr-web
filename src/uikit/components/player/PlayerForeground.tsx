@@ -240,29 +240,29 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
             ) : (
               <RenderGuardedComponent
                 props={mediaInfo.closedCaptioning.enabled}
-                component={(desired) => (
-                  <div
-                    className={combineClasses(
-                      styles.transcriptContainer,
-                      styles['transcriptContainer__' + desired]
-                    )}>
-                    <RenderGuardedComponent
-                      props={transcript}
-                      component={(phrases) => (
-                        <>
-                          {phrases.phrases.map(({ phrase, id }) => (
-                            <TranscriptPhrase
-                              phrase={phrase}
-                              currentTime={mediaInfo.currentTime}
-                              key={id}>
-                              {phrase.phrase}
-                            </TranscriptPhrase>
-                          ))}
-                        </>
-                      )}
-                    />
-                  </div>
-                )}
+                component={(desired) =>
+                  !desired ? (
+                    <></>
+                  ) : (
+                    <div className={styles.transcriptContainer}>
+                      <RenderGuardedComponent
+                        props={transcript}
+                        component={(phrases) => (
+                          <>
+                            {phrases.phrases.map(({ phrase, id }) => (
+                              <TranscriptPhrase
+                                phrase={phrase}
+                                currentTime={mediaInfo.currentTime}
+                                key={id}>
+                                {phrase.phrase}
+                              </TranscriptPhrase>
+                            ))}
+                          </>
+                        )}
+                      />
+                    </div>
+                  )
+                }
               />
             )
           }
@@ -308,7 +308,7 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
                         <div
                           className={combineClasses(
                             styles.iconClosedCaptions,
-                            styles['iconClosedCaptions__' + desired]
+                            desired ? undefined : styles.iconClosedCaptionsDisabled
                           )}
                         />
                       )}

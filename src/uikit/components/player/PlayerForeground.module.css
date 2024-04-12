@@ -214,7 +214,7 @@
   height: 21px;
 }
 
-.iconClosedCaptions.iconClosedCaptions__none {
+.iconClosedCaptions.iconClosedCaptionsDisabled {
   opacity: 50%;
 }
 
