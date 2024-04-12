@@ -32,6 +32,7 @@ import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
 import { PlayerForeground } from '../../../uikit/components/player/PlayerForeground';
 import { JourneyList } from './JourneyList';
 import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
+import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
 
 export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement => {
   const modalContext = useContext(ModalContext);
@@ -230,7 +231,7 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
               content={introVideoStateVWC}
               mediaInfo={mediaInfo}
               transcript={props.transcript}
-              title={props.title}
+              title={useReactManagedValueAsValueWithCallbacks(props.title)}
               label="Series Introduction"
             />
           </div>

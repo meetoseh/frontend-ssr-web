@@ -161,8 +161,8 @@ export const Player = (
           content={audioContent}
           mediaInfo={mediaInfo}
           transcript={props.transcript}
-          title={props.title}
-          subtitle={props.instructor}
+          title={useReactManagedValueAsValueWithCallbacks(props.title)}
+          subtitle={useReactManagedValueAsValueWithCallbacks(props.instructor)}
         />
       </div>
     </div>

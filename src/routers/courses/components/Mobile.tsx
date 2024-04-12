@@ -26,6 +26,7 @@ import { useStyleVWC } from '../../../uikit/hooks/useStyleVWC';
 import { JourneyList } from './JourneyList';
 import { ValueProps } from '../../journeys/components/ValueProps';
 import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
+import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
 
 const borderRadius: BorderRadius = { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 };
 
@@ -254,7 +255,7 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
               content={introVideoStateVWC}
               mediaInfo={mediaInfo}
               transcript={props.transcript}
-              title={props.title}
+              title={useReactManagedValueAsValueWithCallbacks(props.title)}
               label="Series Introduction"
             />
           </div>

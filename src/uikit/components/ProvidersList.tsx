@@ -122,7 +122,7 @@ export const ProvidersList = ({ items }: ProvidersListProps): ReactElement => {
         <div className={styles.secondaries}>
           <Button
             type="button"
-            variant="outlined-white"
+            variant="outlined-white-thin"
             onClick={buttons[1].onClick}
             onLinkClick={buttons[1].onLinkClick}>
             <div className={styles.threeContent}>
@@ -132,7 +132,7 @@ export const ProvidersList = ({ items }: ProvidersListProps): ReactElement => {
           </Button>
           <Button
             type="button"
-            variant="outlined-white"
+            variant="outlined-white-thin"
             onClick={buttons[2].onClick}
             onLinkClick={buttons[2].onLinkClick}>
             <div className={styles.threeContent}>

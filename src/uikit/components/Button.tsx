@@ -1,7 +1,11 @@
-import { AnchorHTMLAttributes, PropsWithChildren, ReactElement, useEffect, useRef } from 'react';
+import { AnchorHTMLAttributes, PropsWithChildren, ReactElement, useCallback } from 'react';
 import styles from './Button.module.css';
 import { combineClasses } from '../lib/combineClasses';
 import { InlineOsehSpinner } from '../components/InlineOsehSpinner';
+import { WritableValueWithCallbacks, useWritableValueWithCallbacks } from '../lib/Callbacks';
+import { useValueWithCallbacksEffect } from '../hooks/useValueWithCallbacksEffect';
+import { setVWC } from '../lib/setVWC';
+import { useMappedValuesWithCallbacks } from '../hooks/useMappedValuesWithCallbacks';
 
 export type ButtonProps = {
   /**
@@ -23,8 +27,10 @@ export type ButtonProps = {
   variant?:
     | 'filled'
     | 'filled-white'
+    | 'filled-premium'
     | 'outlined'
     | 'outlined-white'
+    | 'outlined-white-thin'
     | 'link'
     | 'link-small'
     | 'link-white'
@@ -70,6 +76,7 @@ export type ButtonProps = {
 export const Button = ({
   type,
   children,
+  refVWC = undefined,
   fullWidth = false,
   variant = 'filled',
   disabled = false,
@@ -78,23 +85,47 @@ export const Button = ({
   onLinkClick = undefined,
   onMouseEnter = undefined,
   download = undefined,
-}: PropsWithChildren<ButtonProps>): ReactElement => {
-  const anchorRef = useRef<HTMLAnchorElement>(null);
+}: PropsWithChildren<ButtonProps> & {
+  refVWC?:
+    | WritableValueWithCallbacks<HTMLButtonElement | HTMLAnchorElement | null>
+    | WritableValueWithCallbacks<HTMLElement | null>;
+}): ReactElement => {
+  const buttonVWC = useWritableValueWithCallbacks<HTMLButtonElement | null>(() => null);
+  const anchorVWC = useWritableValueWithCallbacks<HTMLAnchorElement | null>(() => null);
+  const realRefVWC = useMappedValuesWithCallbacks(
+    [buttonVWC, anchorVWC],
+    () => buttonVWC.get() ?? anchorVWC.get() ?? null
+  );
 
-  useEffect(() => {
-    if (
-      anchorRef.current === null ||
-      anchorRef.current === undefined ||
-      onLinkClick === undefined
-    ) {
-      return;
-    }
-    const anchor = anchorRef.current;
-    anchor.addEventListener('click', onLinkClick, false);
-    return () => {
-      anchor.removeEventListener('click', onLinkClick, false);
-    };
-  }, [onLinkClick]);
+  useValueWithCallbacksEffect(
+    realRefVWC,
+    useCallback(
+      (r) => {
+        if (refVWC !== undefined) {
+          setVWC(refVWC as any, r);
+        }
+        return undefined;
+      },
+      [refVWC]
+    )
+  );
+
+  useValueWithCallbacksEffect(
+    anchorVWC,
+    useCallback(
+      (anchorRef) => {
+        if (anchorRef === null || anchorRef === undefined || onLinkClick === undefined) {
+          return;
+        }
+        const anchor = anchorRef;
+        anchor.addEventListener('click', onLinkClick, false);
+        return () => {
+          anchor.removeEventListener('click', onLinkClick, false);
+        };
+      },
+      [onLinkClick]
+    )
+  );
 
   if (typeof onClick !== 'string') {
     return (
@@ -103,6 +134,7 @@ export const Button = ({
         disabled={disabled}
         onClick={onClick}
         onMouseEnter={onMouseEnter}
+        ref={(r) => setVWC(buttonVWC, r)}
         className={combineClasses(
           styles.button,
           styles[variant],
@@ -117,7 +149,7 @@ export const Button = ({
 
   return (
     <a
-      ref={anchorRef}
+      ref={(r) => setVWC(anchorVWC, r)}
       type={type}
       href={onClick}
       onMouseEnter={onMouseEnter}
@@ -149,8 +181,10 @@ const ButtonSpinner = ({
         {
           filled: 'black',
           'filled-white': 'black',
+          'filled-premium': 'white',
           outlined: 'white',
           'outlined-white': 'white',
+          'outlined-white-thin': 'white',
           link: 'white',
           'link-small': 'white',
           'link-white': 'white',

@@ -9,20 +9,32 @@ import { setVWC } from '../../lib/setVWC';
 import styles from './PlayerForeground.module.css';
 import { useStyleVWC } from '../../hooks/useStyleVWC';
 import assistiveStyles from '../../styles/assistive.module.css';
-import { RenderGuardedComponent } from '../RenderGuardedComponent';
-import { ErrorBlock } from '../ErrorBlock';
-import { InlineOsehSpinner } from '../InlineOsehSpinner';
 import { combineClasses } from '../../lib/combineClasses';
 import { useAnimatedValueWithCallbacks } from '../../anim/useAnimatedValueWithCallbacks';
 import { BezierAnimator } from '../../anim/AnimationLoop';
 import { ease } from '../../lib/Bezier';
-import { Wordmark } from '../footer/Wordmark';
 import {
   UseCurrentTranscriptPhrasesResult,
   fadeTimeSeconds,
   holdLateSeconds,
 } from '../../transcripts/useCurrentTranscriptPhrases';
+import { RenderGuardedComponent } from '../../components/RenderGuardedComponent';
+import { InlineOsehSpinner } from '../../components/InlineOsehSpinner';
 import { MediaInfo } from '../../hooks/useMediaInfo';
+import { Wordmark } from '../footer/Wordmark';
+import { IconButton } from '../IconButton';
+import { ErrorBlock } from '../ErrorBlock';
+import { Button } from '../Button';
+
+export type PlayerCTA = {
+  /** The title for the button */
+  title: string;
+  /**
+   * Performs the action; as soon as this is pressed, the media is paused and
+   * a spinner state is shown until the promise resolves or rejects.
+   */
+  action: () => Promise<void>;
+};
 
 export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   /**
@@ -48,10 +60,10 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   transcript: ValueWithCallbacks<UseCurrentTranscriptPhrasesResult>;
 
   /** The title for the content, e.g., the name of the journey */
-  title: string | ReactElement;
+  title: ValueWithCallbacks<string | ReactElement>;
 
   /** If a subtitle should be rendered, e.g., the instructor name, the subtitle to render */
-  subtitle?: string | ReactElement | undefined;
+  subtitle?: ValueWithCallbacks<string | ReactElement | undefined>;
 
   /**
    * If a header, which is just the Oseh wordmark, should be rendered.
@@ -63,6 +75,24 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
    * If specified, adds a tag in the top-left containing this element/text.
    */
   label?: string | ReactElement;
+
+  /** The cta to show, or null for no cta, or undefined if there is never a cta */
+  cta?: ValueWithCallbacks<PlayerCTA | null>;
+
+  /** The tag to show below the title, or null for no tag, or undefined if there is never a tag */
+  tag?: ValueWithCallbacks<string | null>;
+
+  /**
+   * A function to show an x in the upper right that uses this handler, or null
+   * for no x, or undefined if there is never an x.
+   */
+  onClose?: ValueWithCallbacks<(() => Promise<void>) | null>;
+
+  /**
+   * If true, we will assume the background is dark at the top, which
+   * may change some styling.
+   */
+  assumeDark?: boolean;
 };
 
 /**
@@ -79,6 +109,10 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
   subtitle,
   label,
   header = false,
+  cta,
+  tag,
+  onClose,
+  assumeDark,
 }: PlayerForegroundProps<T>): ReactElement => {
   const onPlayButtonClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -175,6 +209,56 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
   });
   useStyleVWC(containerRef, containerStyle);
 
+  const handlingCTA = useWritableValueWithCallbacks(() => false);
+  const onCTAClick = useCallback(async () => {
+    if (cta === undefined) {
+      return;
+    }
+    if (handlingCTA.get()) {
+      return;
+    }
+    const val = cta.get();
+    if (val === null) {
+      return;
+    }
+
+    setVWC(handlingCTA, true);
+    try {
+      const cont = content.get();
+      if (cont.element !== null && !cont.element.paused) {
+        cont.element.pause();
+      }
+      await val.action();
+    } finally {
+      setVWC(handlingCTA, false);
+    }
+  }, [cta, handlingCTA, content]);
+
+  const handlingClose = useWritableValueWithCallbacks(() => false);
+  const onCloseClick = useCallback(async () => {
+    if (onClose === undefined) {
+      return;
+    }
+    if (handlingClose.get()) {
+      return;
+    }
+    const val = onClose.get();
+    if (val === null) {
+      return;
+    }
+
+    setVWC(handlingClose, true);
+    try {
+      const cont = content.get();
+      if (cont.element !== null && !cont.element.paused) {
+        cont.element.pause();
+      }
+      await val();
+    } finally {
+      setVWC(handlingClose, false);
+    }
+  }, [onClose, handlingClose, content]);
+
   return (
     <div className={styles.container} ref={(r) => setVWC(containerRef, r)}>
       {header && (
@@ -191,6 +275,39 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
         <div className={styles.labelContainer}>
           <div className={styles.label}>{label}</div>
         </div>
+      )}
+      {onClose !== undefined && (
+        <RenderGuardedComponent
+          props={onClose}
+          component={(rawHandler) =>
+            rawHandler === null ? (
+              <></>
+            ) : (
+              <div className={styles.closeButtonContainer}>
+                <div
+                  className={combineClasses(
+                    styles.closeButtonInnerContainer,
+                    assumeDark ? styles.closeButtonInnerContainerAssumeDark : undefined
+                  )}>
+                  <RenderGuardedComponent
+                    props={handlingClose}
+                    component={(handling) => (
+                      <IconButton
+                        icon={styles.iconClose}
+                        srOnlyName="Close"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onCloseClick();
+                        }}
+                        spinning={handling}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            )
+          }
+        />
       )}
       <div className={styles.spacer} />
       <div className={styles.playContainer}>
@@ -268,55 +385,105 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
           }
         />
         <div className={styles.controlsContainer}>
-          <div className={styles.titleAndInstructorContainer}>
-            {subtitle !== undefined && <div className={styles.instructor}>{subtitle}</div>}
-            <div className={styles.title}>{title}</div>
+          <div className={styles.infoContainer}>
+            {subtitle !== undefined && (
+              <RenderGuardedComponent
+                props={subtitle}
+                component={(v) =>
+                  v === null ? <></> : <div className={styles.instructor}>{v}</div>
+                }
+              />
+            )}
+            <RenderGuardedComponent
+              props={title}
+              component={(v) => <div className={styles.title}>{v}</div>}
+            />
+            {tag !== undefined && (
+              <RenderGuardedComponent
+                props={tag}
+                component={(v) => (v === null ? <></> : <div className={styles.tag}>{v}</div>)}
+              />
+            )}
           </div>
           <div className={styles.buttonsContainer}>
-            <button className={styles.button} type="button" onClick={onMuteButtonClick}>
+            <div className={styles.buttonIconsRow}>
+              <button className={styles.button} type="button" onClick={onMuteButtonClick}>
+                <RenderGuardedComponent
+                  props={mediaInfo.muted}
+                  component={(muted) => {
+                    if (!muted) {
+                      return (
+                        <>
+                          <div className={styles.iconUnmute} />
+                          <div className={assistiveStyles.srOnly}>Mute</div>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <div className={styles.iconMute} />
+                          <div className={assistiveStyles.srOnly}>Unmute</div>
+                        </>
+                      );
+                    }
+                  }}
+                />
+              </button>
               <RenderGuardedComponent
-                props={mediaInfo.muted}
-                component={(muted) => {
-                  if (!muted) {
-                    return (
-                      <>
-                        <div className={styles.iconUnmute} />
-                        <div className={assistiveStyles.srOnly}>Mute</div>
-                      </>
-                    );
-                  } else {
-                    return (
-                      <>
-                        <div className={styles.iconMute} />
-                        <div className={assistiveStyles.srOnly}>Unmute</div>
-                      </>
-                    );
-                  }
-                }}
+                props={mediaInfo.closedCaptioning.available}
+                component={(available) =>
+                  !available ? (
+                    <></>
+                  ) : (
+                    <button
+                      className={styles.button}
+                      type="button"
+                      onClick={onClosedCaptioningClick}>
+                      <RenderGuardedComponent
+                        props={mediaInfo.closedCaptioning.enabled}
+                        component={(desired) => (
+                          <div
+                            className={combineClasses(
+                              styles.iconClosedCaptions,
+                              desired ? undefined : styles.iconClosedCaptionsDisabled
+                            )}
+                          />
+                        )}
+                      />
+                    </button>
+                  )
+                }
               />
-            </button>
-            <RenderGuardedComponent
-              props={mediaInfo.closedCaptioning.available}
-              component={(available) =>
-                !available ? (
-                  <></>
-                ) : (
-                  <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
-                    <RenderGuardedComponent
-                      props={mediaInfo.closedCaptioning.enabled}
-                      component={(desired) => (
-                        <div
-                          className={combineClasses(
-                            styles.iconClosedCaptions,
-                            desired ? undefined : styles.iconClosedCaptionsDisabled
-                          )}
-                        />
-                      )}
-                    />
-                  </button>
-                )
-              }
-            />
+            </div>
+            {cta !== undefined && (
+              <RenderGuardedComponent
+                props={cta}
+                component={(v) =>
+                  v === null ? (
+                    <></>
+                  ) : (
+                    <div className={styles.buttonCTARow}>
+                      <RenderGuardedComponent
+                        props={handlingCTA}
+                        component={(handling) => (
+                          <Button
+                            type="button"
+                            variant="outlined-white-thin"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onCTAClick();
+                            }}
+                            spinner={handling}>
+                            {v.title}
+                            <div className={styles.arrow} />
+                          </Button>
+                        )}
+                      />
+                    </div>
+                  )
+                }
+              />
+            )}
           </div>
         </div>
         <button
@@ -367,7 +534,7 @@ const TranscriptPhrase = (
       const progressSeconds = props.currentTime.get();
       const timeUntilEnd = props.phrase.endsAt + holdLateSeconds - progressSeconds;
       return timeUntilEnd < fadeTimeSeconds ? 0 : 1;
-    }, [props.phrase])
+    }, [props.phrase, props.currentTime])
   );
 
   const target = useAnimatedValueWithCallbacks<{ opacity: number }>(
@@ -389,10 +556,13 @@ const TranscriptPhrase = (
 
   useValueWithCallbacksEffect(
     opacityTarget,
-    useCallback((opacity) => {
-      setVWC(target, { opacity }, (a, b) => a.opacity === b.opacity);
-      return undefined;
-    }, [])
+    useCallback(
+      (opacity) => {
+        setVWC(target, { opacity }, (a, b) => a.opacity === b.opacity);
+        return undefined;
+      },
+      [target]
+    )
   );
 
   return (
