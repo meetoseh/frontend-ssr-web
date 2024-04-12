@@ -40,6 +40,10 @@ export const useOsehAudioContentState = (
   );
 
   useValueWithCallbacksEffect(targetVWC, (outerTarget) => {
+    if (window === undefined) {
+      return;
+    }
+
     setVWC(result, makeLoadingState(), (a, b) => a.state === b.state);
     if (outerTarget.state !== 'loaded') {
       return;

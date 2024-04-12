@@ -31,6 +31,7 @@ import { LoginOptionsSeparator } from '../../../uikit/components/LoginOptionsSep
 import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
 import { PlayerForeground } from '../../../uikit/components/player/PlayerForeground';
 import { JourneyList } from './JourneyList';
+import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
 
 export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement => {
   const modalContext = useContext(ModalContext);
@@ -135,6 +136,11 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
     size: useWritableValueWithCallbacks(() => ({ width: 360, height: 640 })),
   });
 
+  const mediaInfo = useMediaInfo({
+    mediaVWC: introVideoStateVWC,
+    currentTranscriptPhrasesVWC: props.transcript,
+  });
+
   const introVideoError = useWritableValueWithCallbacks<ReactElement | null>(() => null);
   useValueWithCallbacksEffect(introVideoStateVWC, (state) => {
     setVWC(introVideoError, state.error);
@@ -222,6 +228,7 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
             <PlayerForeground
               size={useWritableValueWithCallbacks(() => ({ width: 360, height: 640 }))}
               content={introVideoStateVWC}
+              mediaInfo={mediaInfo}
               transcript={props.transcript}
               title={props.title}
               label="Series Introduction"

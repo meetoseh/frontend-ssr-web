@@ -15,6 +15,7 @@ import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/u
 import { PlayerForeground } from '../../../uikit/components/player/PlayerForeground';
 import { BorderRadius, convertBorderRadiusToStyle } from '../../../uikit/lib/BorderRadius';
 import { useMappedValuesWithCallbacks } from '../../../uikit/hooks/useMappedValuesWithCallbacks';
+import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
 
 type Size = { width: number; height: number };
 
@@ -125,6 +126,11 @@ export const Player = (
     props: () => contentTarget.get(),
     callbacks: contentTarget.callbacks,
   });
+  const mediaInfo = useMediaInfo({
+    mediaVWC: audioContent,
+    currentTranscriptPhrasesVWC: props.transcript,
+    durationSeconds: props.durationSeconds,
+  });
 
   return (
     <div className={styles.container} ref={containerRef}>
@@ -153,8 +159,8 @@ export const Player = (
         <PlayerForeground
           size={containerSize}
           content={audioContent}
+          mediaInfo={mediaInfo}
           transcript={props.transcript}
-          durationSeconds={props.durationSeconds}
           title={props.title}
           subtitle={props.instructor}
         />

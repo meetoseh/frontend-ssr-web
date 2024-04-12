@@ -25,6 +25,7 @@ import { PlayerForeground } from '../../../uikit/components/player/PlayerForegro
 import { useStyleVWC } from '../../../uikit/hooks/useStyleVWC';
 import { JourneyList } from './JourneyList';
 import { ValueProps } from '../../journeys/components/ValueProps';
+import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
 
 const borderRadius: BorderRadius = { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 };
 
@@ -76,6 +77,11 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
   const introVideoStateVWC = useOsehVideoContentState({
     target: introVideoTargetVWC,
     size: introVideoSizeVWC,
+  });
+
+  const mediaInfo = useMediaInfo({
+    mediaVWC: introVideoStateVWC,
+    currentTranscriptPhrasesVWC: props.transcript,
   });
 
   const introVideoError = useWritableValueWithCallbacks<ReactElement | null>(() => null);
@@ -246,6 +252,7 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
             <PlayerForeground
               size={windowSizeVWC}
               content={introVideoStateVWC}
+              mediaInfo={mediaInfo}
               transcript={props.transcript}
               title={props.title}
               label="Series Introduction"

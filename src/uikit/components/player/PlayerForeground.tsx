@@ -22,7 +22,7 @@ import {
   fadeTimeSeconds,
   holdLateSeconds,
 } from '../../transcripts/useCurrentTranscriptPhrases';
-import { useMediaInfo } from '../../hooks/useMediaInfo';
+import { MediaInfo } from '../../hooks/useMediaInfo';
 
 export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   /**
@@ -39,6 +39,9 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
    */
   content: ValueWithCallbacks<OsehMediaContentState<T>>;
 
+  /** The media info for the content */
+  mediaInfo: MediaInfo;
+
   /**
    * The transcript for the media
    */
@@ -49,12 +52,6 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
 
   /** If a subtitle should be rendered, e.g., the instructor name, the subtitle to render */
   subtitle?: string | ReactElement | undefined;
-
-  /**
-   * If the duration of the content is known in advance, this will be
-   * used before its available from the media element.
-   */
-  durationSeconds?: number;
 
   /**
    * If a header, which is just the Oseh wordmark, should be rendered.
@@ -76,19 +73,13 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
 export const PlayerForeground = <T extends HTMLMediaElement>({
   size,
   content,
+  mediaInfo,
   transcript,
-  durationSeconds,
   title,
   subtitle,
   label,
   header = false,
 }: PlayerForegroundProps<T>): ReactElement => {
-  const mediaInfo = useMediaInfo({
-    mediaVWC: content,
-    currentTranscriptPhrasesVWC: transcript,
-    durationSeconds,
-  });
-
   const onPlayButtonClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
