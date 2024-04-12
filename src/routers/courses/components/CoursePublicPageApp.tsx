@@ -23,13 +23,14 @@ import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
 import { useOauthProviderUrlsValueWithCallbacks } from '../../../uikit/hooks/useOauthProviderUrlsValueWithCallbacks';
 import { Footer } from '../../../uikit/components/footer/Footer';
-import {
-  OsehTranscriptResult,
-  useOsehTranscriptValueWithCallbacks,
-} from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
 import { useVisitorValueWithCallbacks } from '../../../uikit/hooks/useVisitorValueWithCallbacks';
+import {
+  UseCurrentTranscriptPhrasesResult,
+  useCurrentTranscriptPhrases,
+} from '../../../uikit/transcripts/useCurrentTranscriptPhrases';
+import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
 
 export type CoursePublicPageJourney = {
   /** The title of the journey */
@@ -177,7 +178,7 @@ export type CoursePublicPageBodyComponentProps = CoursePublicPageBodyProps & {
   imageHandler: OsehImageStateRequestHandler;
 
   /** The transcript for the video, if available */
-  transcript: ValueWithCallbacks<OsehTranscriptResult>;
+  transcript: ValueWithCallbacks<UseCurrentTranscriptPhrasesResult>;
 
   /** True if the component is being rendered, false if hidden, null if still on server */
   visibleVWC: ValueWithCallbacks<boolean | null>;
@@ -222,9 +223,8 @@ const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement =>
 
   useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
 
-  const transcript = useOsehTranscriptValueWithCallbacks({
-    type: 'react-rerender',
-    props: props.transcriptRef,
+  const transcript = useCurrentTranscriptPhrases({
+    transcriptRef: useReactManagedValueAsValueWithCallbacks(props.transcriptRef),
   });
 
   const transcriptErrorVWC = useWritableValueWithCallbacks<ReactElement | null>(() => null);

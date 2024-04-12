@@ -248,7 +248,6 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
               content={introVideoStateVWC}
               transcript={props.transcript}
               title={props.title}
-              neverTranscript={props.transcriptRef === null}
               label="Series Introduction"
             />
           </div>

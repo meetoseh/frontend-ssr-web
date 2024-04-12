@@ -2,7 +2,6 @@ import { CSSProperties, ReactElement, useCallback, useEffect, useRef } from 'rea
 import { OsehMediaContentState } from '../../content/OsehMediaContentState';
 import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../../lib/Callbacks';
 import { useMappedValueWithCallbacks } from '../../hooks/useMappedValueWithCallbacks';
-import { OsehTranscriptResult } from '../../transcripts/useOsehTranscriptValueWithCallbacks';
 import { useMappedValuesWithCallbacks } from '../../hooks/useMappedValuesWithCallbacks';
 import { OsehTranscriptPhrase } from '../../transcripts/OsehTranscript';
 import { useValueWithCallbacksEffect } from '../../hooks/useValueWithCallbacksEffect';
@@ -18,6 +17,12 @@ import { useAnimatedValueWithCallbacks } from '../../anim/useAnimatedValueWithCa
 import { BezierAnimator } from '../../anim/AnimationLoop';
 import { ease } from '../../lib/Bezier';
 import { Wordmark } from '../footer/Wordmark';
+import {
+  UseCurrentTranscriptPhrasesResult,
+  fadeTimeSeconds,
+  holdLateSeconds,
+} from '../../transcripts/useCurrentTranscriptPhrases';
+import { useMediaInfo } from '../../hooks/useMediaInfo';
 
 export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   /**
@@ -35,10 +40,9 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   content: ValueWithCallbacks<OsehMediaContentState<T>>;
 
   /**
-   * The transcript for the media; this is ignored if "neverTranscript" is
-   * set, which also slims the dom
+   * The transcript for the media
    */
-  transcript: ValueWithCallbacks<OsehTranscriptResult>;
+  transcript: ValueWithCallbacks<UseCurrentTranscriptPhrasesResult>;
 
   /** The title for the content, e.g., the name of the journey */
   title: string | ReactElement;
@@ -62,27 +66,7 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
    * If specified, adds a tag in the top-left containing this element/text.
    */
   label?: string | ReactElement;
-
-  /**
-   * If specified, the transcript is ignored and a small performance
-   * improvement is made on the DOM.
-   */
-  neverTranscript?: boolean;
 };
-
-type ClosedCaptioningDesired = 'none' | 'small';
-const CLOSED_CAPTIONING_DESIRED_VALUES: ClosedCaptioningDesired[] = ['none', 'small'];
-
-const fadeTimeSeconds = 0.5;
-const showEarlySeconds = fadeTimeSeconds;
-const holdLateSeconds = 3 + fadeTimeSeconds;
-
-/**
- * In order to prevent cc from shifting, we will move the end of a phrase
- * up to this much earlier to prevent it from overlapping with the start
- * of the next phrase
- */
-const maximumAdjustmentToAvoidMultipleOnScreen = holdLateSeconds + 1;
 
 /**
  * Displays the overlay for media, either an audio file or video file. Doesn't
@@ -98,234 +82,45 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
   subtitle,
   label,
   header = false,
-  neverTranscript = false,
 }: PlayerForegroundProps<T>): ReactElement => {
-  const durationSecondsVWC = useWritableValueWithCallbacks<number>(() => durationSeconds ?? 0);
-  useValueWithCallbacksEffect(content, (c) => {
-    if (c.element === null) {
-      return undefined;
-    }
+  const mediaInfo = useMediaInfo({
+    mediaVWC: content,
+    currentTranscriptPhrasesVWC: transcript,
+    durationSeconds,
+  });
 
-    const ele = c.element;
-    let active = true;
-    ele.addEventListener('loadedmetadata', recheck);
-    ele.addEventListener('durationchange', recheck);
-    recheck();
-    const unmount = () => {
-      if (active) {
-        active = false;
-        ele.removeEventListener('loadedmetadata', recheck);
-        ele.removeEventListener('durationchange', recheck);
-      }
-    };
-    return unmount;
+  const onPlayButtonClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      const state = mediaInfo.playPauseState.get();
+      const cont = content.get();
 
-    function recheck() {
-      if (!active) {
+      if (cont.element === null) {
         return;
       }
 
-      if (ele.duration !== null && isFinite(ele.duration) && ele.duration > 0) {
-        setVWC(durationSecondsVWC, ele.duration);
+      if (state === 'playing') {
+        cont.element.pause();
+      } else {
+        cont.element.play();
       }
-    }
-  });
-
-  const totalTime = useMappedValueWithCallbacks(durationSecondsVWC, (durationSeconds) => {
-    const minutes = Math.floor(durationSeconds / 60);
-    const seconds = Math.floor(durationSeconds % 60);
-
-    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-  });
-
-  const progressVWC = useWritableValueWithCallbacks<number>(() => 0);
-  const audioState = useWritableValueWithCallbacks<'playing' | 'paused' | 'loading' | 'errored'>(
-    () => 'loading'
-  );
-  const muted = useWritableValueWithCallbacks<boolean>(() => false);
-  const closedCaptioningDesired = useWritableValueWithCallbacks<ClosedCaptioningDesired>(
-    () => 'small'
+    },
+    [mediaInfo, content]
   );
 
-  const transcriptSearchIndexHint = useRef<{ progressSeconds: number; index: number }>({
-    progressSeconds: 0,
-    index: 0,
-  });
+  const onMuteButtonClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      const cont = content.get();
 
-  const adjustedTranscript = useMappedValueWithCallbacks(transcript, (t) => {
-    if (t.type !== 'success' || t.transcript.phrases.length < 1) {
-      return t;
-    }
-
-    const phrases = t.transcript.phrases;
-    const adjustedPhrases = [];
-
-    for (let i = 0; i < phrases.length - 1; i++) {
-      const domEndOfThisPhrase = phrases[i].endsAt + holdLateSeconds;
-      const domStartOfNextPhrase = phrases[i + 1].startsAt - showEarlySeconds;
-      let adjustedEndsAt = phrases[i].endsAt;
-      if (
-        domEndOfThisPhrase > domStartOfNextPhrase &&
-        domEndOfThisPhrase - domStartOfNextPhrase < maximumAdjustmentToAvoidMultipleOnScreen
-      ) {
-        adjustedEndsAt -= domEndOfThisPhrase - domStartOfNextPhrase;
-        if (adjustedEndsAt < phrases[i].startsAt) {
-          adjustedEndsAt = phrases[i].startsAt;
-        }
-      }
-      adjustedPhrases.push({ ...phrases[i], endsAt: adjustedEndsAt });
-    }
-    adjustedPhrases.push(phrases[phrases.length - 1]);
-
-    return {
-      ...t,
-      transcript: {
-        ...t.transcript,
-        phrases: adjustedPhrases,
-      },
-    };
-  });
-
-  const currentTranscriptPhrases = useMappedValuesWithCallbacks(
-    [closedCaptioningDesired, adjustedTranscript, progressVWC, durationSecondsVWC],
-    (): { phrase: OsehTranscriptPhrase; id: number }[] => {
-      if (closedCaptioningDesired.get() === 'none') {
-        return [];
-      }
-
-      const transcriptRaw = adjustedTranscript.get();
-      if (transcriptRaw.type !== 'success') {
-        return [];
-      }
-
-      const phrases = transcriptRaw.transcript.phrases;
-      const progress = progressVWC.get();
-      const durationSeconds = durationSecondsVWC.get();
-
-      const progressSeconds = progress * durationSeconds;
-      const hint = transcriptSearchIndexHint.current;
-
-      if (hint.progressSeconds > progressSeconds) {
-        hint.progressSeconds = 0;
-        hint.index = 0;
-      }
-
-      if (hint.index >= phrases.length) {
-        return [];
-      }
-
-      while (
-        hint.index < phrases.length &&
-        phrases[hint.index].startsAt - showEarlySeconds < progressSeconds &&
-        phrases[hint.index].endsAt + holdLateSeconds < progressSeconds
-      ) {
-        hint.index++;
-      }
-      hint.progressSeconds =
-        hint.index < phrases.length
-          ? phrases[hint.index].startsAt - showEarlySeconds
-          : phrases[hint.index - 1].endsAt + holdLateSeconds;
-      if (hint.index >= phrases.length) {
-        return [];
-      }
-
-      const result: { phrase: OsehTranscriptPhrase; id: number }[] = [];
-      let index = hint.index;
-      while (
-        index < phrases.length &&
-        phrases[index].startsAt - showEarlySeconds < progressSeconds &&
-        phrases[index].endsAt + holdLateSeconds > progressSeconds
-      ) {
-        result.push({ phrase: phrases[index], id: index });
-        index++;
-      }
-      return result;
-    }
-  );
-
-  useValueWithCallbacksEffect(content, (content) => {
-    if (content.error !== null) {
-      setVWC(audioState, 'errored');
-      return undefined;
-    }
-
-    if (!content.loaded) {
-      setVWC(audioState, 'loading');
-      return;
-    }
-
-    if (audioState.get() === 'loading') {
-      setVWC(audioState, 'paused');
-    }
-
-    if (content.element === null) {
-      return;
-    }
-    const audio = content.element;
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('ended', onPause);
-    audio.addEventListener('volumechange', onVolumeChange);
-
-    return () => {
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('ended', onPause);
-      audio.removeEventListener('volumechange', onVolumeChange);
-    };
-
-    function onPlay() {
-      setVWC(audioState, 'playing');
-    }
-
-    function onPause() {
-      setVWC(audioState, 'paused');
-    }
-
-    function onTimeUpdate() {
-      if (isNaN(audio.duration) || isNaN(audio.currentTime) || audio.duration === 0) {
-        setVWC(progressVWC, 0);
+      if (cont.element === null) {
         return;
       }
 
-      const progress = audio.currentTime / audio.duration;
-      setVWC(progressVWC, progress);
-    }
-
-    function onVolumeChange() {
-      setVWC(muted, audio.muted);
-    }
-  });
-
-  const onPlayButtonClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const state = audioState.get();
-    const cont = content.get();
-
-    if (cont.element === null) {
-      return;
-    }
-
-    if (state === 'playing') {
-      cont.element.pause();
-    } else {
-      cont.element.play();
-    }
-  }, []);
-
-  const onMuteButtonClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const cont = content.get();
-
-    if (cont.element === null) {
-      return;
-    }
-
-    cont.element.muted = !cont.element.muted;
-    setVWC(muted, cont.element.muted);
-  }, []);
+      cont.element.muted = !cont.element.muted;
+    },
+    [content]
+  );
 
   const progressFullRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -334,53 +129,44 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
     }
     const progressFull = progressFullRef.current;
 
-    progressVWC.callbacks.add(onProgressChanged);
+    mediaInfo.progress.callbacks.add(onProgressChanged);
     onProgressChanged();
     return () => {
-      progressVWC.callbacks.remove(onProgressChanged);
+      mediaInfo.progress.callbacks.remove(onProgressChanged);
     };
 
     function onProgressChanged() {
-      const progress = progressVWC.get();
+      const progress = mediaInfo.progress.get();
       progressFull.style.width = `${progress * 100}%`;
     }
-  }, []);
+  }, [mediaInfo.progress]);
 
-  const onProgressContainerClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const onProgressContainerClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
 
-    const cont = content.get();
-    if (cont.element === null) {
-      return;
-    }
+      const cont = content.get();
+      if (cont.element === null) {
+        return;
+      }
 
-    const location = e.clientX;
-    const clickedButton = e.currentTarget;
-    const clickedButtonRects = clickedButton.getBoundingClientRect();
-    const progress = (location - clickedButtonRects.left) / clickedButtonRects.width;
-    const seekingTo = progress * cont.element.duration;
-    cont.element.currentTime = seekingTo;
-  }, []);
+      const location = e.clientX;
+      const clickedButton = e.currentTarget;
+      const clickedButtonRects = clickedButton.getBoundingClientRect();
+      const progress = (location - clickedButtonRects.left) / clickedButtonRects.width;
+      const seekingTo = progress * cont.element.duration;
+      cont.element.currentTime = seekingTo;
+    },
+    [content]
+  );
 
-  const onClosedCaptioningClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const onClosedCaptioningClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
 
-    const current = closedCaptioningDesired.get();
-    setVWC(
-      closedCaptioningDesired,
-      CLOSED_CAPTIONING_DESIRED_VALUES[
-        (CLOSED_CAPTIONING_DESIRED_VALUES.indexOf(current) + 1) %
-          CLOSED_CAPTIONING_DESIRED_VALUES.length
-      ]
-    );
-  }, []);
-
-  const progressAndDurationVWC = useMappedValuesWithCallbacks(
-    [progressVWC, durationSecondsVWC],
-    () => ({
-      progress: progressVWC.get(),
-      durationSeconds: durationSecondsVWC.get(),
-    })
+      setVWC(mediaInfo.closedCaptioning.enabled, !mediaInfo.closedCaptioning.enabled.get());
+    },
+    [mediaInfo.closedCaptioning]
   );
 
   const containerRef = useWritableValueWithCallbacks<HTMLDivElement | null>(() => null);
@@ -419,7 +205,7 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
       <div className={styles.playContainer}>
         <button type="button" className={styles.playButton} onClick={onPlayButtonClick}>
           <RenderGuardedComponent
-            props={audioState}
+            props={mediaInfo.playPauseState}
             component={(state) => {
               if (state === 'paused') {
                 return <div className={styles.iconPlay} />;
@@ -431,6 +217,14 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
                 const err = content.get().error;
                 if (err !== null) {
                   return err;
+                }
+                const mediaError = content.get().element?.error;
+                if (mediaError !== undefined && mediaError !== null) {
+                  return (
+                    <ErrorBlock>
+                      {mediaError.code}: {mediaError.message}
+                    </ErrorBlock>
+                  );
                 }
                 return <ErrorBlock>Something went wrong.</ErrorBlock>;
               }
@@ -447,35 +241,41 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
         </button>
       </div>
       <div className={styles.bottomContents}>
-        {!neverTranscript && (
-          <RenderGuardedComponent
-            props={closedCaptioningDesired}
-            component={(desired) => (
-              <div
-                className={combineClasses(
-                  styles.transcriptContainer,
-                  styles['transcriptContainer__' + desired]
-                )}>
-                <RenderGuardedComponent
-                  props={currentTranscriptPhrases}
-                  component={(phrases) => (
-                    <>
-                      {phrases.map(({ phrase, id }) => (
-                        <TranscriptPhrase
-                          phrase={phrase}
-                          progress={progressVWC}
-                          durationSeconds={durationSecondsVWC}
-                          key={id}>
-                          {phrase.phrase}
-                        </TranscriptPhrase>
-                      ))}
-                    </>
-                  )}
-                />
-              </div>
-            )}
-          />
-        )}
+        <RenderGuardedComponent
+          props={mediaInfo.closedCaptioning.available}
+          component={(available) =>
+            !available ? (
+              <></>
+            ) : (
+              <RenderGuardedComponent
+                props={mediaInfo.closedCaptioning.enabled}
+                component={(desired) => (
+                  <div
+                    className={combineClasses(
+                      styles.transcriptContainer,
+                      styles['transcriptContainer__' + desired]
+                    )}>
+                    <RenderGuardedComponent
+                      props={transcript}
+                      component={(phrases) => (
+                        <>
+                          {phrases.phrases.map(({ phrase, id }) => (
+                            <TranscriptPhrase
+                              phrase={phrase}
+                              currentTime={mediaInfo.currentTime}
+                              key={id}>
+                              {phrase.phrase}
+                            </TranscriptPhrase>
+                          ))}
+                        </>
+                      )}
+                    />
+                  </div>
+                )}
+              />
+            )
+          }
+        />
         <div className={styles.controlsContainer}>
           <div className={styles.titleAndInstructorContainer}>
             {subtitle !== undefined && <div className={styles.instructor}>{subtitle}</div>}
@@ -484,7 +284,7 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
           <div className={styles.buttonsContainer}>
             <button className={styles.button} type="button" onClick={onMuteButtonClick}>
               <RenderGuardedComponent
-                props={muted}
+                props={mediaInfo.muted}
                 component={(muted) => {
                   if (!muted) {
                     return (
@@ -504,21 +304,28 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
                 }}
               />
             </button>
-            {!neverTranscript && (
-              <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
-                <RenderGuardedComponent
-                  props={closedCaptioningDesired}
-                  component={(desired) => (
-                    <div
-                      className={combineClasses(
-                        styles.iconClosedCaptions,
-                        styles['iconClosedCaptions__' + desired]
+            <RenderGuardedComponent
+              props={mediaInfo.closedCaptioning.available}
+              component={(available) =>
+                !available ? (
+                  <></>
+                ) : (
+                  <button className={styles.button} type="button" onClick={onClosedCaptioningClick}>
+                    <RenderGuardedComponent
+                      props={mediaInfo.closedCaptioning.enabled}
+                      component={(desired) => (
+                        <div
+                          className={combineClasses(
+                            styles.iconClosedCaptions,
+                            styles['iconClosedCaptions__' + desired]
+                          )}
+                        />
                       )}
                     />
-                  )}
-                />
-              </button>
-            )}
+                  </button>
+                )
+              }
+            />
           </div>
         </div>
         <button
@@ -532,9 +339,8 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
         <div className={styles.durationContainer}>
           <div className={styles.currentTime}>
             <RenderGuardedComponent
-              props={progressAndDurationVWC}
-              component={({ durationSeconds, progress }) => {
-                const inSeconds = Math.floor(durationSeconds * progress);
+              props={mediaInfo.currentTime}
+              component={(inSeconds) => {
                 const minutes = Math.floor(inSeconds / 60);
                 const seconds = Math.floor(inSeconds) % 60;
 
@@ -548,8 +354,8 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
             />
           </div>
           <RenderGuardedComponent
-            props={totalTime}
-            component={(totalTime) => <div className={styles.totalTime}>{totalTime}</div>}
+            props={mediaInfo.totalTime}
+            component={(totalTime) => <div className={styles.totalTime}>{totalTime.formatted}</div>}
           />
         </div>
       </div>
@@ -559,16 +365,15 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
 
 const TranscriptPhrase = (
   props: React.PropsWithChildren<{
-    progress: ValueWithCallbacks<number>;
-    durationSeconds: ValueWithCallbacks<number>;
+    currentTime: ValueWithCallbacks<number>;
     phrase: OsehTranscriptPhrase;
   }>
 ): ReactElement => {
   const ele = useRef<HTMLDivElement>(null);
   const opacityTarget = useMappedValuesWithCallbacks(
-    [props.progress, props.durationSeconds],
+    [props.currentTime],
     useCallback(() => {
-      const progressSeconds = props.progress.get() * props.durationSeconds.get();
+      const progressSeconds = props.currentTime.get();
       const timeUntilEnd = props.phrase.endsAt + holdLateSeconds - progressSeconds;
       return timeUntilEnd < fadeTimeSeconds ? 0 : 1;
     }, [props.phrase])

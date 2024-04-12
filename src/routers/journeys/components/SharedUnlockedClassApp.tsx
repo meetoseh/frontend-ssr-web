@@ -18,10 +18,6 @@ import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { Mobile } from './Mobile';
 import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
 import { OsehTranscriptRef } from '../../../uikit/transcripts/OsehTranscriptRef';
-import {
-  OsehTranscriptResult,
-  useOsehTranscriptValueWithCallbacks,
-} from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { setVWC } from '../../../uikit/lib/setVWC';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
@@ -33,6 +29,11 @@ import { Footer } from '../../../uikit/components/footer/Footer';
 import { useMappedValueWithCallbacks } from '../../../uikit/hooks/useMappedValueWithCallbacks';
 import { useWindowSizeValueWithCallbacks } from '../../../uikit/hooks/useWindowSize';
 import { useStyleVWC } from '../../../uikit/hooks/useStyleVWC';
+import {
+  UseCurrentTranscriptPhrasesResult,
+  useCurrentTranscriptPhrases,
+} from '../../../uikit/transcripts/useCurrentTranscriptPhrases';
+import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
 
 export type SharedUnlockedClassProps = {
   /**
@@ -195,7 +196,7 @@ export type SharedUnlockedClassBodyDelegateProps = Omit<
   'stylesheets' | 'slug' | 'metaImages'
 > & {
   signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
-  transcript: ValueWithCallbacks<OsehTranscriptResult>;
+  transcript: ValueWithCallbacks<UseCurrentTranscriptPhrasesResult>;
 };
 /**
  * Renders the meaningful content that describes and plays the specific class.
@@ -213,9 +214,8 @@ export const SharedUnlockedClassBody = (
   const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers, {
     tracking: true,
   });
-  const transcript = useOsehTranscriptValueWithCallbacks({
-    type: 'react-rerender',
-    props: props.transcriptRef,
+  const transcript = useCurrentTranscriptPhrases({
+    transcriptRef: useReactManagedValueAsValueWithCallbacks(props.transcriptRef),
   });
   const transcriptErrorVWC = useWritableValueWithCallbacks<ReactElement | null>(() => null);
   useValueWithCallbacksEffect(transcript, (t) => {

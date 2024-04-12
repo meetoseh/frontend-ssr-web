@@ -117,7 +117,7 @@ export const Player = (
 
   const contentTarget = useOsehContentTargetValueWithCallbacks({
     ref: useReactManagedValueAsValueWithCallbacks(props.audio),
-    comparer: useReactManagedValueAsValueWithCallbacks(() => 0),
+    comparer: useReactManagedValueAsValueWithCallbacks((a, b) => b.bandwidth - a.bandwidth),
     presign: true,
   });
   const audioContent = useOsehAudioContentState({
@@ -157,7 +157,6 @@ export const Player = (
           durationSeconds={props.durationSeconds}
           title={props.title}
           subtitle={props.instructor}
-          neverTranscript={props.transcriptRef === null}
         />
       </div>
     </div>
