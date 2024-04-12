@@ -29,6 +29,7 @@ import {
 } from '../../../uikit/transcripts/useOsehTranscriptValueWithCallbacks';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
+import { useVisitorValueWithCallbacks } from '../../../uikit/hooks/useVisitorValueWithCallbacks';
 
 export type CoursePublicPageJourney = {
   /** The title of the journey */
@@ -186,6 +187,8 @@ export type CoursePublicPageBodyComponentProps = CoursePublicPageBodyProps & {
 };
 
 const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement => {
+  useVisitorValueWithCallbacks(undefined);
+
   const modalContext = useContext(ModalContext);
   const imageHandler = useOsehImageStateRequestHandler({});
 
