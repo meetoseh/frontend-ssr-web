@@ -2,8 +2,6 @@ import { ReactElement } from 'react';
 
 export type OsehMediaContentStateLoading = {
   state: 'loading';
-  play: null;
-  stop: null;
   loaded: false;
   error: null;
   element: null;
@@ -11,8 +9,6 @@ export type OsehMediaContentStateLoading = {
 
 export type OsehMediaContentStateError = {
   state: 'error';
-  play: null;
-  stop: null;
   loaded: false;
   /**
    * An element describing the error that occurred while loading the audio or video.
@@ -23,21 +19,9 @@ export type OsehMediaContentStateError = {
 
 export type OsehMediaContentStateLoaded<T extends HTMLMediaElement> = {
   state: 'loaded';
-  /**
-   * A function that can be used to play the media, if the media is ready to
-   * be played, otherwise null. Note that play() is privileged, meaning that
-   * it must be called _immediately_ after a user interaction
-   */
-  play: (this: void) => Promise<void>;
-
-  /**
-   * A function that can be used to stop the media, if the media is playing.
-   */
-  stop: (this: void) => Promise<void>;
 
   /**
    * A convenience boolean which is true if the media is ready to be played.
-   * This is equivalent to (play !== null), but more semantically meaningful.
    */
   loaded: true;
 

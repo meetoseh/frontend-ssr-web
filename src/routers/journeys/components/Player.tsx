@@ -30,11 +30,7 @@ const areSizesEqual = (a: Size | null, b: Size | null): boolean => {
  * Displays the player for the class. Must be in a container with an explicit
  * width and height and a grid with 1 column and 1 row filling the container
  */
-export const Player = (
-  props: SharedUnlockedClassBodyDelegateProps & {
-    header: boolean;
-  }
-): ReactElement => {
+export const Player = (props: SharedUnlockedClassBodyDelegateProps): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerSize = useWritableValueWithCallbacks<{ width: number; height: number } | null>(
     () => null

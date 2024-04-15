@@ -31,7 +31,7 @@ export const Mobile = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
         />
       </div>
       <div className={styles.player}>
-        <Player {...props} header={false} />
+        <Player {...props} />
       </div>
       <div className={styles.valuePropsContainer}>
         <ValueProps />

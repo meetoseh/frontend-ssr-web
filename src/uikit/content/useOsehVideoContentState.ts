@@ -4,13 +4,13 @@ import { OsehContentTarget } from './OsehContentTarget';
 import { setVWC } from '../lib/setVWC';
 import { useValuesWithCallbacksEffect } from '../hooks/useValuesWithCallbacksEffect';
 import { getEffectiveVideoTarget } from './createVideoSizeComparerForTarget';
-import { describeError } from '../components/ErrorBlock';
 import {
   OsehMediaContentState,
   OsehMediaContentStateError,
   OsehMediaContentStateLoaded,
   OsehMediaContentStateLoading,
 } from './OsehMediaContentState';
+import { describeError } from '../components/ErrorBlock';
 
 export type UseOsehVideoContentStateProps = {
   target: ValueWithCallbacks<OsehContentTarget>;
@@ -227,14 +227,7 @@ export const useOsehVideoContentState = ({
           return;
         }
 
-        setVWC(
-          result,
-          makeLoadedState(
-            () => video.play(),
-            async () => video.pause(),
-            video
-          )
-        );
+        setVWC(result, makeLoadedState(video));
       }
     }, [result, sizeVWC, targetVWC])
   );
@@ -244,8 +237,6 @@ export const useOsehVideoContentState = ({
 
 const makeLoadingState = (): OsehMediaContentStateLoading => ({
   state: 'loading',
-  play: null,
-  stop: null,
   loaded: false,
   error: null,
   element: null,
@@ -253,21 +244,15 @@ const makeLoadingState = (): OsehMediaContentStateLoading => ({
 
 const makeErrorState = (error: ReactElement): OsehMediaContentStateError => ({
   state: 'error',
-  play: null,
-  stop: null,
   loaded: false,
   error,
   element: null,
 });
 
 const makeLoadedState = (
-  play: (this: void) => Promise<void>,
-  stop: (this: void) => Promise<void>,
   video: HTMLVideoElement
 ): OsehMediaContentStateLoaded<HTMLVideoElement> => ({
   state: 'loaded',
-  play,
-  stop,
   loaded: true,
   error: null,
   element: video,

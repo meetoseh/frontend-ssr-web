@@ -205,15 +205,7 @@ export const useOsehAudioContentState = (
         return;
       }
 
-      setVWC(
-        result,
-        makeLoadedState(
-          () => audio.play(),
-          async () => audio.pause(),
-          audio
-        ),
-        () => false
-      );
+      setVWC(result, makeLoadedState(audio), () => false);
     }
   });
 
@@ -222,8 +214,6 @@ export const useOsehAudioContentState = (
 
 const makeLoadingState = (): OsehMediaContentStateLoading => ({
   state: 'loading',
-  play: null,
-  stop: null,
   loaded: false,
   error: null,
   element: null,
@@ -231,21 +221,15 @@ const makeLoadingState = (): OsehMediaContentStateLoading => ({
 
 const makeErrorState = (error: ReactElement): OsehMediaContentStateError => ({
   state: 'error',
-  play: null,
-  stop: null,
   loaded: false,
   error,
   element: null,
 });
 
 const makeLoadedState = (
-  play: (this: void) => Promise<void>,
-  stop: (this: void) => Promise<void>,
   audio: HTMLAudioElement
 ): OsehMediaContentStateLoaded<HTMLAudioElement> => ({
   state: 'loaded',
-  play,
-  stop,
   loaded: true,
   error: null,
   element: audio,

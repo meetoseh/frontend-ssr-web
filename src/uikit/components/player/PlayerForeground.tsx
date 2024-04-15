@@ -21,7 +21,6 @@ import {
 import { RenderGuardedComponent } from '../../components/RenderGuardedComponent';
 import { InlineOsehSpinner } from '../../components/InlineOsehSpinner';
 import { MediaInfo } from '../../hooks/useMediaInfo';
-import { Wordmark } from '../footer/Wordmark';
 import { IconButton } from '../IconButton';
 import { ErrorBlock } from '../ErrorBlock';
 import { Button } from '../Button';
@@ -66,12 +65,6 @@ export type PlayerForegroundProps<T extends HTMLMediaElement> = {
   subtitle?: ValueWithCallbacks<string | ReactElement | undefined>;
 
   /**
-   * If a header, which is just the Oseh wordmark, should be rendered.
-   * Default false.
-   */
-  header?: boolean;
-
-  /**
    * If specified, adds a tag in the top-left containing this element/text.
    */
   label?: string | ReactElement;
@@ -108,7 +101,6 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
   title,
   subtitle,
   label,
-  header = false,
   cta,
   tag,
   onClose,
@@ -261,16 +253,6 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
 
   return (
     <div className={styles.container} ref={(r) => setVWC(containerRef, r)}>
-      {header && (
-        <div className={styles.header}>
-          <div className={styles.wordmarkContainer}>
-            <a className={styles.wordmark} href="https://www.oseh.com">
-              <Wordmark size={{ height: 20 }} color="white" />
-              <div className={assistiveStyles.srOnly}>Oseh</div>
-            </a>
-          </div>
-        </div>
-      )}
       {label && (
         <div className={styles.labelContainer}>
           <div className={styles.label}>{label}</div>
