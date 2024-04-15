@@ -253,44 +253,48 @@ export const PlayerForeground = <T extends HTMLMediaElement>({
 
   return (
     <div className={styles.container} ref={(r) => setVWC(containerRef, r)}>
-      {label && (
-        <div className={styles.labelContainer}>
-          <div className={styles.label}>{label}</div>
-        </div>
-      )}
-      {onClose !== undefined && (
-        <RenderGuardedComponent
-          props={onClose}
-          component={(rawHandler) =>
-            rawHandler === null ? (
-              <></>
-            ) : (
-              <div className={styles.closeButtonContainer}>
-                <div
-                  className={combineClasses(
-                    styles.closeButtonInnerContainer,
-                    assumeDark ? styles.closeButtonInnerContainerAssumeDark : undefined
-                  )}>
-                  <RenderGuardedComponent
-                    props={handlingClose}
-                    component={(handling) => (
-                      <IconButton
-                        icon={styles.iconClose}
-                        srOnlyName="Close"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onCloseClick();
-                        }}
-                        spinning={handling}
+      {label || onClose !== undefined ? (
+        <div className={styles.header}>
+          {label && (
+            <div className={styles.labelContainer}>
+              <div className={styles.label}>{label}</div>
+            </div>
+          )}
+          {onClose !== undefined && (
+            <RenderGuardedComponent
+              props={onClose}
+              component={(rawHandler) =>
+                rawHandler === null ? (
+                  <></>
+                ) : (
+                  <div className={styles.closeButtonContainer}>
+                    <div
+                      className={combineClasses(
+                        styles.closeButtonInnerContainer,
+                        assumeDark ? styles.closeButtonInnerContainerAssumeDark : undefined
+                      )}>
+                      <RenderGuardedComponent
+                        props={handlingClose}
+                        component={(handling) => (
+                          <IconButton
+                            icon={styles.iconClose}
+                            srOnlyName="Close"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onCloseClick();
+                            }}
+                            spinning={handling}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </div>
-              </div>
-            )
-          }
-        />
-      )}
+                    </div>
+                  </div>
+                )
+              }
+            />
+          )}
+        </div>
+      ) : undefined}
       <div className={styles.spacer} />
       <div className={styles.playContainer}>
         <button type="button" className={styles.playButton} onClick={onPlayButtonClick}>

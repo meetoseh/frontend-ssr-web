@@ -10,13 +10,20 @@
   grid-area: 1 / 1 / 1 / 1;
 }
 
-.labelContainer {
+.header {
   display: flex;
-  flex-direction: column;
+  flex-flow: row nowrap;
   justify-content: flex-start;
   align-items: flex-start;
+  width: 100%;
+}
+
+.labelContainer {
+  align-self: flex-start;
   padding-top: 20px;
   padding-left: 22px;
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
 .label {
@@ -31,11 +38,13 @@
 }
 
 .closeButtonContainer {
+  flex-grow: 1;
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  padding-top: 16px;
-  padding-right: 16px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-top: 19px;
+  padding-right: 19px;
 }
 
 .closeButtonInnerContainer {
