@@ -127,6 +127,7 @@ export const componentRouteHandler = (
           args.resp.statusCode = 500;
           args.resp.statusMessage = 'Internal Server Error';
           args.resp.end();
+          args.state.done = true;
           args.reject(e);
         },
       });

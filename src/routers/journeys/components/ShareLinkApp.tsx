@@ -225,30 +225,30 @@ export const ShareLinkAppBody = (
     () => props.journey
   );
   const journeyError = useWritableValueWithCallbacks<ReactElement | null>(() => null);
-  const visitorVWC = useVisitorValueWithCallbacks(
+  const visitorRaw = useVisitorValueWithCallbacks(
     useMappedValueWithCallbacks(journeyVWC, (j) => j?.impliedUTM ?? null)
   );
 
   useErrorModal(modalContext.modals, journeyError, 'Loading journey');
 
-  useValuesWithCallbacksEffect([journeyVWC, loginContextRaw.value, visitorVWC], () => {
+  useValuesWithCallbacksEffect([journeyVWC, loginContextRaw.value, visitorRaw.value], () => {
     if (window === undefined) {
       return undefined;
     }
     const journey = journeyVWC.get();
     const loginRaw = loginContextRaw.value.get();
-    const visitorRaw = visitorVWC.get();
+    const visitorUnch = visitorRaw.value.get();
 
     if (journey === null) {
       window.location.assign(rootFrontendUrl);
       return undefined;
     }
 
-    if (journey !== undefined || loginRaw.state === 'loading' || visitorRaw.loading) {
+    if (journey !== undefined || loginRaw.state === 'loading' || visitorUnch.loading) {
       return undefined;
     }
     const login = loginRaw.state === 'logged-in' ? loginRaw : null;
-    const visitor = visitorRaw;
+    const visitor = visitorUnch;
 
     let running = true;
     const cancelers = new Callbacks<undefined>();
@@ -339,7 +339,7 @@ export const ShareLinkAppBody = (
     }
   });
 
-  useValuesWithCallbacksEffect([loginContextRaw.value, visitorVWC], () => {
+  useValuesWithCallbacksEffect([loginContextRaw.value, visitorRaw.value], () => {
     if (props.viewUid === undefined || window === undefined) {
       return undefined;
     }
@@ -349,14 +349,14 @@ export const ShareLinkAppBody = (
       return undefined;
     }
 
-    const visitorRaw = visitorVWC.get();
-    if (visitorRaw.loading) {
+    const visitorUnch = visitorRaw.value.get();
+    if (visitorUnch.loading) {
       return undefined;
     }
 
     const login = loginRaw.state === 'logged-in' ? loginRaw : null;
     const visitorHeader: Record<string, string> =
-      visitorRaw.uid === null ? {} : { Visitor: visitorRaw.uid };
+      visitorUnch.uid === null ? {} : { Visitor: visitorUnch.uid };
     const viewUid = props.viewUid;
 
     let running = true;
