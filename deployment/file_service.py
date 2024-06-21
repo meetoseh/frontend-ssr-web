@@ -4,7 +4,7 @@ import botocore.exceptions
 import aiofiles
 import os
 from loguru import logger as logging
-from temp_files import temp_file
+from deployment.temp_files import temp_file
 import io
 
 
