@@ -4,10 +4,11 @@ into /home/ec2-user/bootstrap/ then invoking /home/ec2-user/scripts/build/main.s
 
 Pass --dry-run to avoid actually spawning the instance
 """
+
 import asyncio
 import secrets
 import time
-from typing import Awaitable, Callable, List
+from typing import Awaitable, Callable, List, Tuple
 import aioboto3
 from deployment.error_middleware import handle_error
 from deployment.itgs import Itgs
@@ -240,7 +241,7 @@ async def trigger_build(
 
             logger.info("Executing script on instance...")
             try:
-                await asyncio.wait_for(
+                stdout, stderr = await asyncio.wait_for(
                     anyio.to_thread.run_sync(
                         connect_and_execute,
                         instance_private_ip,
@@ -266,7 +267,34 @@ async def trigger_build(
                     "frontend-ssr-web build timed out (build_ready was not published within 5 minutes of script finishing)"
                 )
                 raise
-            logger.info("build_ready detected, cleaning up...")
+
+            logger.info("build_ready detected, storing build logs...")
+            await slack.send_ops_message("frontend-ssr-web storing build logs...")
+
+            with temp_file() as stdout_path, temp_file() as stderr_path:
+                with open(stdout_path, "w") as f:
+                    f.write(stdout)
+                with open(stderr_path, "w") as f:
+                    f.write(stderr)
+
+                files = await itgs.files()
+                with open(stdout_path, "rb") as f:
+                    await files.upload(
+                        f,
+                        bucket=files.default_bucket,
+                        key="builds/frontend-ssr/build-stdout.txt",
+                        sync=True,
+                    )
+
+                with open(stderr_path, "rb") as f:
+                    await files.upload(
+                        f,
+                        bucket=files.default_bucket,
+                        key="builds/frontend-ssr/build-stderr.txt",
+                        sync=True,
+                    )
+
+            logger.info("build logs stored, cleaning up")
             await slack.send_ops_message(
                 "frontend-ssr-web cleaning up ec2 artifacts..."
             )
@@ -312,7 +340,7 @@ def generate_single_file_script() -> str:
     return res.getvalue()
 
 
-def connect_and_execute(ip: str, key_file_path: str, script: str) -> None:
+def connect_and_execute(ip: str, key_file_path: str, script: str) -> Tuple[str, str]:
     client = None
     for attempt in range(150):
         client = paramiko.SSHClient()
@@ -354,6 +382,7 @@ def connect_and_execute(ip: str, key_file_path: str, script: str) -> None:
     logger.trace(f"stdout: {stdout}")
     logger.trace(f"stderr: {stderr}")
     logger.info(f"Done executing script on {ip}")
+    return stdout, stderr
 
 
 if __name__ == "__main__":

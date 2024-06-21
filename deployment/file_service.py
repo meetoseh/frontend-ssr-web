@@ -4,11 +4,11 @@ import botocore.exceptions
 import aiofiles
 import os
 from loguru import logger as logging
-from deployment.temp_files import temp_file
+from temp_files import temp_file
 import io
 
 
-class AsyncReadableBytesIO(Protocol):
+class AsyncReadableBytesIOA(Protocol):
     """A type that represents a stream that can be read asynchronously"""
 
     async def read(self, n: int) -> bytes:
@@ -16,12 +16,34 @@ class AsyncReadableBytesIO(Protocol):
         raise NotImplementedError()
 
 
-class SyncReadableBytesIO(Protocol):
+class AsyncReadableBytesIOB(Protocol):
+    """A type that represents a stream that can be read asynchronously"""
+
+    async def read(self, n: int, /) -> bytes:
+        """Reads n bytes from the file-like object"""
+        raise NotImplementedError()
+
+
+AsyncReadableBytesIO = Union[AsyncReadableBytesIOA, AsyncReadableBytesIOB]
+
+
+class SyncReadableBytesIOA(Protocol):
     """A type that represents a stream that can be read synchronously"""
 
     def read(self, n: int) -> bytes:
         """Reads n bytes from the file-like object"""
         raise NotImplementedError()
+
+
+class SyncReadableBytesIOB(Protocol):
+    """A type that represents a stream that can be read synchronously"""
+
+    def read(self, n: int, /) -> bytes:
+        """Reads n bytes from the file-like object"""
+        raise NotImplementedError()
+
+
+SyncReadableBytesIO = Union[SyncReadableBytesIOA, SyncReadableBytesIOB]
 
 
 class AsyncWritableBytesIO(Protocol):
