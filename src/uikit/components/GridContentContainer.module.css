@@ -1,0 +1,21 @@
+.container {
+  grid-area: 1 / 1 / -1 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.overflower {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}

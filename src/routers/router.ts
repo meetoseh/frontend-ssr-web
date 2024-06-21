@@ -4,6 +4,7 @@ import managementRoutes from './management/router';
 import docsRoute from './openapi/routes/docs';
 import journeyRoutes from './journeys/router';
 import courseRoutes from './courses/router';
+import iabRoutes from './inapp_browser/router';
 
 const routes: {
   [prefix: string]: (PendingRoute | ((args: CommandLineArgs) => Promise<PendingRoute[]>))[];
@@ -11,7 +12,7 @@ const routes: {
 routes['/shared/management'] = managementRoutes;
 routes['/shared'] = [docsRoute];
 
-for (const fancyRoutes of [journeyRoutes, courseRoutes]) {
+for (const fancyRoutes of [journeyRoutes, courseRoutes, iabRoutes]) {
   for (const [pfx, subroutes] of Object.entries(fancyRoutes)) {
     if (pfx in routes) {
       routes[pfx].push(...subroutes);

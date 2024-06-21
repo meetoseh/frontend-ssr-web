@@ -1,0 +1,4 @@
+.container {
+  grid-area: 1 / 1 / -1 / -1;
+  background: linear-gradient(0deg, #010101 0%, #14191c 100%);
+}

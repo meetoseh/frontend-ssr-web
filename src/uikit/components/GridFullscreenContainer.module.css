@@ -1,0 +1,15 @@
+.container {
+  position: relative;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  width: 100%;
+  overflow-x: hidden;
+  max-width: 100%;
+  z-index: 0;
+  flex: 0 0 auto;
+}
+
+.container > * {
+  /* ensure they are rendered in order of appearance or explicitly set z-index */
+  z-index: 0;
+}

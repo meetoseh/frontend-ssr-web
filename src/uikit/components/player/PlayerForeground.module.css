@@ -171,6 +171,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
+  flex: 1 1 auto;
 }
 
 .instructor {
@@ -210,6 +211,7 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-end;
+  flex: 0 0 auto;
 }
 
 .buttonIconsRow {
