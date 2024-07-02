@@ -26,12 +26,11 @@
   color: #c8cdd0;
 }
 
-.message2 {
+.img {
+  display: block;
+  margin: 0 auto;
   width: 100%;
-  text-align: left;
-  font-family: 'Open Sans', sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 24px;
-  color: #eaeaeb;
+  height: auto;
+  max-width: 342px;
+  border-radius: 10px;
 }

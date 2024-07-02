@@ -2,9 +2,10 @@ import { createComponentRoutes } from '../../lib/createComponentRoutes';
 import { CommandLineArgs } from '../../../CommandLineArgs';
 import { createFakeCancelable } from '../../../lib/createFakeCancelable';
 import { InappBrowserApp, InappBrowserAppProps } from '../components/InappBrowserApp';
+import { staticRouteHandler } from '../../lib/staticRouteHandler';
 
-export const iabCatchall = (args: CommandLineArgs) =>
-  createComponentRoutes<InappBrowserAppProps>({
+export const iabCatchall = async (args: CommandLineArgs) => {
+  const routes = await createComponentRoutes<InappBrowserAppProps>({
     path: (routerPrefix) => {
       return (url: string): boolean =>
         url.startsWith(routerPrefix) && !url.startsWith('/iab-assets', routerPrefix.length);
@@ -38,3 +39,15 @@ export const iabCatchall = (args: CommandLineArgs) =>
     args,
     getSitemapEntries: (routerPrefix, pump) => pump([]),
   });
+
+  routes.push({
+    methods: ['GET'],
+    path: '/static/alisa-9-2-342w-crop2@3x.jpeg',
+    handler: (args) =>
+      staticRouteHandler(args, 'src/routers/inapp_browser/assets/alisa-9-2-342w-crop2@3x.jpeg', {
+        contentType: 'image/jpeg',
+      }),
+    docs: [],
+  });
+  return routes;
+};

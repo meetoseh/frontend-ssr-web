@@ -79,14 +79,17 @@ const Inner = (): ReactElement => {
         gridSizeVWC={ctx.windowSizeImmediate}
         justifyContent="flex-start">
         <VerticalSpacer height={32} />
-        <div className={styles.top}>🌟 Get started with Oseh</div>
-        <VerticalSpacer height={0} flexGrow={3} />
-        <div className={styles.header}>How do you want to try Oseh?</div>
-        <VerticalSpacer height={16} />
-        <div className={styles.message}>
-          To use it in your browser, tap the three dots in the upper right and choose
-        </div>
-        <div className={styles.message2}>Open in external browser</div>
+        <div className={styles.top}>🌟 Reclaim your Calm</div>
+        <VerticalSpacer height={0} flexGrow={1} />
+        <img
+          src="/iab/static/alisa-9-2-342w-crop2@3x.jpeg"
+          alt="Alisa Galper"
+          width={1042}
+          height={999}
+          className={styles.img}
+        />
+        <VerticalSpacer height={0} flexGrow={1} />
+        <div className={styles.header}>Download Oseh for the best experience</div>
         <VerticalSpacer height={0} flexGrow={1} />
         <DownloadAppLinks tracking justify={{ type: 'react-rerender', props: 'flex-end' }} />
         <VerticalSpacer height={0} flexGrow={1} />
