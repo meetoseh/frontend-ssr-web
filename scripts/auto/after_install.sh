@@ -22,7 +22,7 @@ install_nvm() {
 }
 
 install_node() {
-    nvm install 18.18
+    nvm install 18.20
 }
 
 activate_node_installing_if_necessary() {
