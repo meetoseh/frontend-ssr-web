@@ -89,7 +89,12 @@ const Inner = (): ReactElement => {
           className={styles.img}
         />
         <VerticalSpacer height={0} flexGrow={1} />
-        <div className={styles.header}>Download Oseh for the best experience</div>
+        <div className={styles.header}>Experience Oseh right now</div>
+        <VerticalSpacer height={4} flexGrow={1} maxHeight={16} />
+        <div className={styles.message}>
+          Tap the three dots in the upper right and choose <strong>Open in External Browser</strong>
+          , or install our app
+        </div>
         <VerticalSpacer height={0} flexGrow={1} />
         <DownloadAppLinks tracking justify={{ type: 'react-rerender', props: 'flex-end' }} />
         <VerticalSpacer height={0} flexGrow={1} />

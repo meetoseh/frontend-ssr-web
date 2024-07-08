@@ -6,10 +6,12 @@ import { ReactElement } from 'react';
  */
 export const VerticalSpacer = ({
   height,
+  maxHeight,
   flexBasis,
   flexGrow,
 }: {
   height: number;
+  maxHeight?: number;
   flexBasis?: number;
   flexGrow?: number;
 }): ReactElement =>
@@ -20,6 +22,7 @@ export const VerticalSpacer = ({
       style={{
         height: `${height}px`,
         paddingTop: `${height}px`,
+        ...(maxHeight !== undefined ? { maxHeight: `${maxHeight}px` } : {}),
         ...(flexGrow !== undefined ? { flexGrow: `${flexGrow}` } : {}),
         ...(flexBasis !== undefined ? { flexBasis: `${flexBasis}px` } : {}),
       }}
