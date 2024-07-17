@@ -49,5 +49,14 @@ export const iabCatchall = async (args: CommandLineArgs) => {
       }),
     docs: [],
   });
+  routes.push({
+    methods: ['GET'],
+    path: '/static/dylan-iab-342w@3x.jpeg',
+    handler: (args) =>
+      staticRouteHandler(args, 'src/routers/inapp_browser/assets/dylan-iab-342w@3x.jpeg', {
+        contentType: 'image/jpeg',
+      }),
+    docs: [],
+  });
   return routes;
 };

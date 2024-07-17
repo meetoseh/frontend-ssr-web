@@ -82,14 +82,14 @@ const Inner = (): ReactElement => {
         <div className={styles.top}>🌟 Reclaim your Calm</div>
         <VerticalSpacer height={0} flexGrow={1} />
         <img
-          src="/iab/static/alisa-9-2-342w-crop2@3x.jpeg"
-          alt="Alisa Galper"
+          src="/iab/static/dylan-iab-342w@3x.jpeg"
+          alt="Dylan Werner"
           width={1042}
-          height={999}
+          height={739}
           className={styles.img}
         />
         <VerticalSpacer height={0} flexGrow={1} />
-        <div className={styles.header}>Experience Oseh right now</div>
+        <div className={styles.header}>Experience Dylan's New Series</div>
         <VerticalSpacer height={4} flexGrow={1} maxHeight={16} />
         <div className={styles.message}>
           Tap the three dots in the upper right and choose <strong>Open in External Browser</strong>
