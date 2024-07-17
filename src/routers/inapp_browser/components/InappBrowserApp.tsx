@@ -79,7 +79,7 @@ const Inner = (): ReactElement => {
         gridSizeVWC={ctx.windowSizeImmediate}
         justifyContent="flex-start">
         <VerticalSpacer height={32} />
-        <div className={styles.top}>🌟 Reclaim your Calm</div>
+        <div className={styles.top}>🌟 Everyday Mindful Series</div>
         <VerticalSpacer height={0} flexGrow={1} />
         <img
           src="/iab/static/dylan-iab-342w@3x.jpeg"
