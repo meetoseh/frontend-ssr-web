@@ -79,7 +79,7 @@ const Inner = (): ReactElement => {
         gridSizeVWC={ctx.windowSizeImmediate}
         justifyContent="flex-start">
         <VerticalSpacer height={32} />
-        <div className={styles.top}>🌟 Everyday Mindful Series</div>
+        <div className={styles.top}>🌟 Reclaim your Calm</div>
         <VerticalSpacer height={0} flexGrow={1} />
         <img
           src="/iab/static/dylan-iab-342w@3x.jpeg"
@@ -89,7 +89,7 @@ const Inner = (): ReactElement => {
           className={styles.img}
         />
         <VerticalSpacer height={0} flexGrow={1} />
-        <div className={styles.header}>Experience Dylan's New Series</div>
+        <div className={styles.header}>Experience Oseh right now</div>
         <VerticalSpacer height={4} flexGrow={1} maxHeight={16} />
         <div className={styles.message}>
           Tap the three dots in the upper right and choose <strong>Open in External Browser</strong>
