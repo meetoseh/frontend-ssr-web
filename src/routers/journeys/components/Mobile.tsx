@@ -5,9 +5,8 @@ import { SharedUnlockedClassBodyDelegateProps } from './SharedUnlockedClassApp';
 import { Player } from './Player';
 import { ValueProps } from './ValueProps';
 import { Callout } from './Callout';
-import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
-import { ProvidersList } from '../../../uikit/components/ProvidersList';
 import { DownloadAppLinks } from '../../../uikit/components/DownloadAppLinks';
+import { ContinueOnWeb } from '../../../uikit/components/ContinueOnWeb';
 
 /**
  * Manages the contents seen on less-than-tablet-sized screens
@@ -25,10 +24,7 @@ export const Mobile = (props: SharedUnlockedClassBodyDelegateProps): ReactElemen
         <Callout />
       </div>
       <div className={styles.providerListContainer}>
-        <RenderGuardedComponent
-          props={props.signInUrls}
-          component={(signInUrls) => <ProvidersList items={signInUrls} />}
-        />
+        <ContinueOnWeb tracking />
       </div>
       <div className={styles.player}>
         <Player {...props} />

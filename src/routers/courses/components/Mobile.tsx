@@ -10,7 +10,6 @@ import { Wordmark } from '../../../uikit/components/footer/Wordmark';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import { BorderRadius, convertBorderRadiusToStyle } from '../../../uikit/lib/BorderRadius';
 import { OsehImageFromState } from '../../../uikit/images/OsehImageFromState';
-import { ProvidersList } from '../../../uikit/components/ProvidersList';
 import { ModalContext } from '../../../uikit/contexts/ModalContext';
 import { useOsehContentTargetValueWithCallbacks } from '../../../uikit/content/useOsehContentTargetValueWithCallbacks';
 import { useMappedValueWithCallbacks } from '../../../uikit/hooks/useMappedValueWithCallbacks';
@@ -27,6 +26,7 @@ import { JourneyList } from './JourneyList';
 import { ValueProps } from '../../journeys/components/ValueProps';
 import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
 import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
+import { ContinueOnWeb } from '../../../uikit/components/ContinueOnWeb';
 
 const borderRadius: BorderRadius = { topLeft: 0, topRight: 0, bottomLeft: 10, bottomRight: 10 };
 
@@ -214,10 +214,7 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
           <div className={styles.instructor}>{props.instructor}</div>
         </div>
         <div className={styles.section}>
-          <RenderGuardedComponent
-            props={props.signInUrls}
-            component={(signInUrls) => <ProvidersList items={signInUrls} />}
-          />
+          <ContinueOnWeb tracking />
         </div>
         <div className={styles.section}>
           <div className={styles.description}>{props.description}</div>
@@ -272,10 +269,7 @@ export const Mobile = (props: CoursePublicPageBodyComponentProps): ReactElement 
           <ValueProps />
         </div>
         <div className={styles.section}>
-          <RenderGuardedComponent
-            props={props.signInUrls}
-            component={(signInUrls) => <ProvidersList items={signInUrls} />}
-          />
+          <ContinueOnWeb tracking />
         </div>
         <div className={styles.section}>
           <div className={styles.osehPlus}>

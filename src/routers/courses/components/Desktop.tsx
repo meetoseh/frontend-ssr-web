@@ -14,7 +14,6 @@ import { adaptValueWithCallbacksAsVariableStrategyProps } from '../../../uikit/l
 import styles from './Desktop.module.css';
 import { RenderGuardedComponent } from '../../../uikit/components/RenderGuardedComponent';
 import { OsehImageFromState } from '../../../uikit/images/OsehImageFromState';
-import { ProvidersList } from '../../../uikit/components/ProvidersList';
 import { useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
 import { useValuesWithCallbacksEffect } from '../../../uikit/hooks/useValuesWithCallbacksEffect';
 import { BorderRadius, convertBorderRadiusToStyle } from '../../../uikit/lib/BorderRadius';
@@ -33,6 +32,7 @@ import { PlayerForeground } from '../../../uikit/components/player/PlayerForegro
 import { JourneyList } from './JourneyList';
 import { useMediaInfo } from '../../../uikit/hooks/useMediaInfo';
 import { useReactManagedValueAsValueWithCallbacks } from '../../../uikit/hooks/useReactManagedValueAsValueWithCallbacks';
+import { ContinueOnWeb } from '../../../uikit/components/ContinueOnWeb';
 
 export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement => {
   const modalContext = useContext(ModalContext);
@@ -70,9 +70,6 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
   const heroStateVWC = useOsehImageStateValueWithCallbacks(
     adaptValueWithCallbacksAsVariableStrategyProps(heroPropsVWC),
     props.imageHandler
-  );
-  const shortSigninUrlsVWC = useMappedValueWithCallbacks(props.signInUrls, (urls) =>
-    urls.filter((u) => u.provider === 'Direct')
   );
 
   const heroContainerRef = useWritableValueWithCallbacks<HTMLDivElement | null>(() => null);
@@ -198,10 +195,7 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
           <div className={styles.instructor}>{props.instructor}</div>
           <div className={styles.description}>{props.description}</div>
           <div className={styles.providerListContainer}>
-            <RenderGuardedComponent
-              props={shortSigninUrlsVWC}
-              component={(signInUrls) => <ProvidersList items={signInUrls} />}
-            />
+            <ContinueOnWeb tracking />
           </div>
         </div>
       </div>
@@ -251,10 +245,7 @@ export const Desktop = (props: CoursePublicPageBodyComponentProps): ReactElement
           <ValueProps />
         </div>
         <div className={styles.outroSignup}>
-          <RenderGuardedComponent
-            props={props.signInUrls}
-            component={(signInUrls) => <ProvidersList items={signInUrls} />}
-          />
+          <ContinueOnWeb tracking />
           <LoginOptionsSeparator />
           <div>
             <DownloadAppLinks tracking />

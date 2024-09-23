@@ -18,10 +18,7 @@ import {
   OsehImageStateRequestHandler,
   useOsehImageStateRequestHandler,
 } from '../../../uikit/images/useOsehImageStateRequestHandler';
-import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
-import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
-import { useOauthProviderUrlsValueWithCallbacks } from '../../../uikit/hooks/useOauthProviderUrlsValueWithCallbacks';
 import { Footer } from '../../../uikit/components/footer/Footer';
 import { useValueWithCallbacksEffect } from '../../../uikit/hooks/useValueWithCallbacksEffect';
 import { usePlausibleEvent } from '../../../uikit/hooks/usePlausibleEvent';
@@ -182,9 +179,6 @@ export type CoursePublicPageBodyComponentProps = CoursePublicPageBodyProps & {
 
   /** True if the component is being rendered, false if hidden, null if still on server */
   visibleVWC: ValueWithCallbacks<boolean | null>;
-
-  /** How the user can signup */
-  signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
 };
 
 const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement => {
@@ -212,17 +206,6 @@ const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement =>
     }
   }, [versionVWC]);
 
-  const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [
-    'Direct',
-    'Google',
-    'SignInWithApple',
-  ]);
-  const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers, {
-    tracking: true,
-  });
-
-  useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
-
   const transcript = useCurrentTranscriptPhrases({
     transcriptRef: useReactManagedValueAsValueWithCallbacks(props.transcriptRef),
   });
@@ -246,7 +229,6 @@ const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement =>
           visibleVWC={useMappedValueWithCallbacks(versionVWC, (v) =>
             v === null ? null : v === 'mobile'
           )}
-          signInUrls={signinUrlsVWC}
           transcript={transcript}
         />
       </div>
@@ -257,7 +239,6 @@ const CoursePublicPageBody = (props: CoursePublicPageBodyProps): ReactElement =>
           visibleVWC={useMappedValueWithCallbacks(versionVWC, (v) =>
             v === null ? null : v === 'desktop'
           )}
-          signInUrls={signinUrlsVWC}
           transcript={transcript}
         />
       </div>

@@ -9,12 +9,9 @@ import {
 import styles from './SharedUnlockClassApp.module.css';
 import { Tablet } from './Tablet';
 import { OsehImageRef } from '../../../uikit/images/OsehImageRef';
-import { useOauthProviderUrlsValueWithCallbacks } from '../../../uikit/hooks/useOauthProviderUrlsValueWithCallbacks';
 import { ValueWithCallbacks, useWritableValueWithCallbacks } from '../../../uikit/lib/Callbacks';
 import { ModalContext, Modals, ModalsOutlet } from '../../../uikit/contexts/ModalContext';
 import { useErrorModal } from '../../../uikit/hooks/useErrorModal';
-import { ProvidersListItem } from '../../../uikit/components/ProvidersList';
-import { OauthProvider } from '../../../uikit/lib/OauthProvider';
 import { Mobile } from './Mobile';
 import { OsehContentRef } from '../../../uikit/content/OsehContentRef';
 import { OsehTranscriptRef } from '../../../uikit/transcripts/OsehTranscriptRef';
@@ -195,7 +192,6 @@ export type SharedUnlockedClassBodyDelegateProps = Omit<
   SharedUnlockedClassProps,
   'stylesheets' | 'slug' | 'metaImages'
 > & {
-  signInUrls: ValueWithCallbacks<Omit<ProvidersListItem, 'onLinkClick'>[]>;
   transcript: ValueWithCallbacks<UseCurrentTranscriptPhrasesResult>;
 };
 /**
@@ -205,15 +201,7 @@ export const SharedUnlockedClassBody = (
   props: Omit<SharedUnlockedClassProps, 'stylesheets' | 'slug' | 'metaImages'>
 ) => {
   const modalContext = useContext(ModalContext);
-  const providers = useWritableValueWithCallbacks<OauthProvider[]>(() => [
-    'Direct',
-    'Google',
-    'SignInWithApple',
-  ]);
 
-  const [signinUrlsVWC, signinUrlsErrorVWC] = useOauthProviderUrlsValueWithCallbacks(providers, {
-    tracking: true,
-  });
   const transcript = useCurrentTranscriptPhrases({
     transcriptRef: useReactManagedValueAsValueWithCallbacks(props.transcriptRef),
   });
@@ -223,7 +211,6 @@ export const SharedUnlockedClassBody = (
     return undefined;
   });
 
-  useErrorModal(modalContext.modals, signinUrlsErrorVWC, 'Generating login urls');
   useErrorModal(modalContext.modals, transcriptErrorVWC, 'Loading transcript');
 
   const windowSizeVWC = useWindowSizeValueWithCallbacks();
@@ -240,10 +227,10 @@ export const SharedUnlockedClassBody = (
   return (
     <>
       <div className={styles.tablet} style={tabletStyle.get()} ref={(r) => setVWC(tabletRef, r)}>
-        <Tablet {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
+        <Tablet {...props} transcript={transcript} />
       </div>
       <div className={styles.mobile}>
-        <Mobile {...props} signInUrls={signinUrlsVWC} transcript={transcript} />
+        <Mobile {...props} transcript={transcript} />
       </div>
       <Footer />
     </>
