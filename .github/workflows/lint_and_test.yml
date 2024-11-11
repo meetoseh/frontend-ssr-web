@@ -14,4 +14,5 @@ jobs:
       - run: npm ci
       - run: npx prettier --check **/*.tsx
       - run: npx prettier --check **/*.ts
+      - run: mkdir tmp
       - run: npm test
