@@ -30,7 +30,3 @@ appropriate self-signed certificates and DNS remapping. You will usually prefer
 to connect at [oseh-dev.com:3001](https://oseh-dev.com:3001) so that assets loaded
 from frontend-web are also served, using the dev proxy from frontend-web to handle
 serving both from the same port
-
-## License
-
-2023 Oseh Inc, All Rights Reserved
